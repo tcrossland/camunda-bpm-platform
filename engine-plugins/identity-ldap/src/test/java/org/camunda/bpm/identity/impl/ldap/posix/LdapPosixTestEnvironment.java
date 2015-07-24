@@ -57,6 +57,9 @@ public class LdapPosixTestEnvironment extends LdapTestEnvironment {
 
     ldapService.start();
 
+    createGroup("office-berlin");
+    String dnDaniel = createUserUid("daniel", "office-berlin", "Daniel", "Meyer", "daniel@camunda.org");
+
     createGroup("people");
     createUserUid("ruecker", "people", "Bernd", "Ruecker", "ruecker@camunda.org");
     createUserUid("monster", "people", "Cookie", "Monster", "monster@camunda.org");
