@@ -40,6 +40,7 @@ import org.camunda.bpm.engine.AuthorizationException;
 import org.camunda.bpm.engine.IdentityService;
 import org.camunda.bpm.engine.authorization.Authorization;
 import org.camunda.bpm.engine.authorization.Groups;
+import org.camunda.bpm.engine.authorization.MissingAuthorization;
 import org.camunda.bpm.engine.authorization.Permission;
 import org.camunda.bpm.engine.authorization.Permissions;
 import org.camunda.bpm.engine.authorization.Resource;
@@ -64,12 +65,14 @@ import org.camunda.bpm.engine.impl.JobDefinitionQueryImpl;
 import org.camunda.bpm.engine.impl.JobQueryImpl;
 import org.camunda.bpm.engine.impl.ProcessDefinitionQueryImpl;
 import org.camunda.bpm.engine.impl.ProcessDefinitionStatisticsQueryImpl;
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.TaskQueryImpl;
 import org.camunda.bpm.engine.impl.UserOperationLogQueryImpl;
 import org.camunda.bpm.engine.impl.VariableInstanceQueryImpl;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.db.AuthorizationCheck;
 import org.camunda.bpm.engine.impl.db.DbEntity;
+import org.camunda.bpm.engine.impl.db.EnginePersistenceLogger;
 import org.camunda.bpm.engine.impl.db.PermissionCheck;
 import org.camunda.bpm.engine.impl.identity.Authentication;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
@@ -83,6 +86,7 @@ import org.camunda.bpm.engine.impl.util.CollectionUtil;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AuthorizationManager extends AbstractManager {
 
+  protected static final EnginePersistenceLogger LOG = ProcessEngineLogger.PERSISTENCE_LOGGER;
   public static final String DEFAULT_AUTHORIZATION_CHECK = "defaultAuthorizationCheck";
 
   public Authorization createNewAuthorization(int type) {
@@ -160,36 +164,20 @@ public class AuthorizationManager extends AbstractManager {
       boolean isAuthorized = isAuthorized(userId, currentAuthentication.getGroupIds(), permissionChecks);
       if (!isAuthorized) {
 
-        if (permissionChecks.size() == 1) {
-          PermissionCheck permissionCheck = permissionChecks.get(0);
-          String permissionName = permissionCheck.getPermission().getName();
-          String resourceType = permissionCheck.getResource().resourceName();
-          String resourceId = permissionCheck.getResourceId();
-          throw new AuthorizationException(userId, permissionName, resourceType, resourceId);
-        } else {
+        List<MissingAuthorization> info = new ArrayList<MissingAuthorization>();
 
-          String message = "The user with id '" + userId +
-                           "' does not have one of the following permissions: ";
-
-          for (int i = 0; i < permissionChecks.size(); i++) {
-
-            if (i > 0) {
-              message = message + " or ";
-            }
-
-            PermissionCheck permissionCheck = permissionChecks.get(i);
-            String permissionName = permissionCheck.getPermission().getName();
-            String resourceType = permissionCheck.getResource().resourceName();
-            String resourceId = permissionCheck.getResourceId();
-
-            message = message + "'"+permissionName+"' permission " +
-                "on resource '" + (resourceId != null ? (resourceId+"' of type '") : "" ) + resourceType + "'";
-          }
-          throw new AuthorizationException(message);
+        for (PermissionCheck check: permissionChecks) {
+          info.add(new MissingAuthorization(
+              check.getPermission().getName(),
+              check.getResource().resourceName(),
+              check.getResourceId()));
         }
+
+        throw new AuthorizationException(userId, info);
       }
     }
   }
+
 
   public void checkAuthorization(Permission permission, Resource resource) {
     checkAuthorization(permission, resource, null);
@@ -204,7 +192,11 @@ public class AuthorizationManager extends AbstractManager {
 
       boolean isAuthorized = isAuthorized(currentAuthentication.getUserId(), currentAuthentication.getGroupIds(), permission, resource, resourceId);
       if (!isAuthorized) {
-        throw new AuthorizationException(currentAuthentication.getUserId(), permission.getName(), resource.resourceName(), resourceId);
+        throw new AuthorizationException(
+            currentAuthentication.getUserId(),
+            permission.getName(),
+            resource.resourceName(),
+            resourceId);
       }
     }
 
@@ -331,7 +323,7 @@ public class AuthorizationManager extends AbstractManager {
           .memberOfGroup(Groups.CAMUNDA_ADMIN)
           .count();
       if (count == 0) {
-        throw new AuthorizationException("The user '"+userId+"' is not a member of group '"+Groups.CAMUNDA_ADMIN+"'.");
+        throw LOG.notAMemberException(userId, Groups.CAMUNDA_ADMIN);
       }
     }
   }

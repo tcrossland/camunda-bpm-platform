@@ -10,7 +10,11 @@
 
     <sequenceFlow sourceRef="theStart" targetRef="serviceTask" />
 
-    <serviceTask id="serviceTask" camunda:asyncBefore="true" camunda:asyncAfter="true" camunda:class="org.camunda.bpm.engine.test.api.runtime.FailingDelegate" />
+    <serviceTask id="serviceTask" 
+      camunda:asyncBefore="true" 
+      camunda:asyncAfter="true" 
+      camunda:class="org.camunda.bpm.engine.test.api.runtime.FailingDelegate"
+      camunda:jobPriority="15" />
 
     <sequenceFlow id="flow1" sourceRef="serviceTask" targetRef="theEnd" />
 

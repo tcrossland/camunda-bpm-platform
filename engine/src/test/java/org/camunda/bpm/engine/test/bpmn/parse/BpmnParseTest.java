@@ -16,8 +16,12 @@ package org.camunda.bpm.engine.test.bpmn.parse;
 import java.util.List;
 
 import org.camunda.bpm.engine.ProcessEngineException;
+import org.camunda.bpm.engine.impl.bpmn.behavior.BoundaryEventActivityBehavior;
 import org.camunda.bpm.engine.impl.bpmn.behavior.CompensationEndEventActivityBehavior;
+import org.camunda.bpm.engine.impl.bpmn.behavior.EventSubProcessStartEventActivityBehavior;
 import org.camunda.bpm.engine.impl.bpmn.behavior.NoneStartEventActivityBehavior;
+import org.camunda.bpm.engine.impl.bpmn.behavior.ThrowEscalationEventActivityBehavior;
+import org.camunda.bpm.engine.impl.bpmn.helper.BpmnProperties;
 import org.camunda.bpm.engine.impl.bpmn.parser.BpmnParse;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.interceptor.Command;
@@ -27,6 +31,7 @@ import org.camunda.bpm.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.camunda.bpm.engine.impl.pvm.PvmActivity;
 import org.camunda.bpm.engine.impl.pvm.PvmTransition;
 import org.camunda.bpm.engine.impl.pvm.process.ActivityImpl;
+import org.camunda.bpm.engine.impl.pvm.process.ScopeImpl;
 import org.camunda.bpm.engine.impl.pvm.process.TransitionImpl;
 import org.camunda.bpm.engine.impl.test.PluggableProcessEngineTestCase;
 import org.camunda.bpm.engine.impl.test.TestHelper;
@@ -378,39 +383,53 @@ public class BpmnParseTest extends PluggableProcessEngineTestCase {
     assertEquals(Boolean.TRUE, endEvent.getProperty(BpmnParse.PROPERTYNAME_THROWS_COMPENSATION));
     assertEquals(CompensationEndEventActivityBehavior.class, endEvent.getActivityBehavior().getClass());
   }
-  
+
+  @Deployment
+  public void testParseCompensationStartEvent() {
+    ActivityImpl compensationStartEvent = findActivityInDeployedProcessDefinition("compensationStartEvent");
+
+    assertEquals("compensationStartEvent", compensationStartEvent.getProperty("type"));
+    assertEquals(EventSubProcessStartEventActivityBehavior.class, compensationStartEvent.getActivityBehavior().getClass());
+
+    ActivityImpl compensationEventSubProcess = (ActivityImpl) compensationStartEvent.getFlowScope();
+    assertEquals(Boolean.TRUE, compensationEventSubProcess.getProperty(BpmnParse.PROPERTYNAME_IS_FOR_COMPENSATION));
+
+    ScopeImpl subprocess = compensationEventSubProcess.getFlowScope();
+    assertEquals(compensationEventSubProcess.getActivityId(), subprocess.getProperty(BpmnParse.PROPERTYNAME_COMPENSATION_HANDLER_ID));
+  }
+
   @Deployment
   public void testParseAsyncMultiInstanceBody(){
-    ActivityImpl innerTask = findActivityInDeployedProcessDefinition("miTask");    
+    ActivityImpl innerTask = findActivityInDeployedProcessDefinition("miTask");
     ActivityImpl miBody = innerTask.getParentFlowScopeActivity();
-    
+
     assertTrue(miBody.isAsyncBefore());
-    assertTrue(miBody.isAsyncAfter());  
-    
+    assertTrue(miBody.isAsyncAfter());
+
     assertFalse(innerTask.isAsyncBefore());
     assertFalse(innerTask.isAsyncAfter());
   }
-  
+
   @Deployment
   public void testParseAsyncActivityWrappedInMultiInstanceBody(){
-    ActivityImpl innerTask = findActivityInDeployedProcessDefinition("miTask");  
+    ActivityImpl innerTask = findActivityInDeployedProcessDefinition("miTask");
     assertTrue(innerTask.isAsyncBefore());
-    assertTrue(innerTask.isAsyncAfter());  
-   
+    assertTrue(innerTask.isAsyncAfter());
+
     ActivityImpl miBody = innerTask.getParentFlowScopeActivity();
     assertFalse(miBody.isAsyncBefore());
     assertFalse(miBody.isAsyncAfter());
   }
-  
+
   @Deployment
   public void testParseAsyncActivityWrappedInMultiInstanceBodyWithAsyncMultiInstance(){
-    ActivityImpl innerTask = findActivityInDeployedProcessDefinition("miTask");       
+    ActivityImpl innerTask = findActivityInDeployedProcessDefinition("miTask");
     assertEquals(true, innerTask.isAsyncBefore());
-    assertEquals(false, innerTask.isAsyncAfter());  
-    
-    ActivityImpl miBody = innerTask.getParentFlowScopeActivity();    
+    assertEquals(false, innerTask.isAsyncAfter());
+
+    ActivityImpl miBody = innerTask.getParentFlowScopeActivity();
     assertEquals(false, miBody.isAsyncBefore());
-    assertEquals(true, miBody.isAsyncAfter());    
+    assertEquals(true, miBody.isAsyncAfter());
   }
 
   public void testParseSwitchedSourceAndTargetRefsForAssociations() {
@@ -421,13 +440,63 @@ public class BpmnParseTest extends PluggableProcessEngineTestCase {
 
     repositoryService.deleteDeployment(repositoryService.createDeploymentQuery().singleResult().getId(), true);
   }
-  
+
+  @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensateEventTest.compensationMiActivity.bpmn20.xml")
+  public void testParseCompensationHandlerOfMiActivity() {
+    ActivityImpl miActivity = findActivityInDeployedProcessDefinition("undoBookHotel");
+    ScopeImpl flowScope = miActivity.getFlowScope();
+
+    assertEquals("multiInstanceBody", flowScope.getProperty(BpmnParse.PROPERTYNAME_TYPE));
+    assertEquals("bookHotel" + BpmnParse.MULTI_INSTANCE_BODY_ID_SUFFIX, ((ActivityImpl) flowScope).getActivityId());
+  }
+
+  @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/event/compensate/CompensateEventTest.compensationMiSubprocess.bpmn20.xml")
+  public void testParseCompensationHandlerOfMiSubprocess() {
+    ActivityImpl miActivity = findActivityInDeployedProcessDefinition("undoBookHotel");
+    ScopeImpl flowScope = miActivity.getFlowScope();
+
+    assertEquals("multiInstanceBody", flowScope.getProperty(BpmnParse.PROPERTYNAME_TYPE));
+    assertEquals("scope" + BpmnParse.MULTI_INSTANCE_BODY_ID_SUFFIX, ((ActivityImpl) flowScope).getActivityId());
+  }
+
   @Deployment
   public void testParseSignalStartEvent(){
     ActivityImpl signalStartActivity = findActivityInDeployedProcessDefinition("start");
-    
+
     assertEquals("signalStartEvent", signalStartActivity.getProperty("type"));
     assertEquals(NoneStartEventActivityBehavior.class, signalStartActivity.getActivityBehavior().getClass());
+  }
+
+  @Deployment
+  public void testParseEscalationBoundaryEvent() {
+    ActivityImpl escalationBoundaryEvent = findActivityInDeployedProcessDefinition("escalationBoundaryEvent");
+
+    assertEquals("boundaryEscalation", escalationBoundaryEvent.getProperties().get(BpmnProperties.TYPE));
+    assertEquals(BoundaryEventActivityBehavior.class, escalationBoundaryEvent.getActivityBehavior().getClass());
+  }
+
+  @Deployment
+  public void testParseEscalationIntermediateThrowingEvent() {
+    ActivityImpl escalationThrowingEvent = findActivityInDeployedProcessDefinition("escalationThrowingEvent");
+
+    assertEquals("intermediateEscalationThrowEvent", escalationThrowingEvent.getProperties().get(BpmnProperties.TYPE));
+    assertEquals(ThrowEscalationEventActivityBehavior.class, escalationThrowingEvent.getActivityBehavior().getClass());
+  }
+
+  @Deployment
+  public void testParseEscalationEndEvent() {
+    ActivityImpl escalationEndEvent = findActivityInDeployedProcessDefinition("escalationEndEvent");
+
+    assertEquals("escalationEndEvent", escalationEndEvent.getProperties().get(BpmnProperties.TYPE));
+    assertEquals(ThrowEscalationEventActivityBehavior.class, escalationEndEvent.getActivityBehavior().getClass());
+  }
+
+  @Deployment
+  public void testParseEscalationStartEvent() {
+    ActivityImpl escalationStartEvent = findActivityInDeployedProcessDefinition("escalationStartEvent");
+
+    assertEquals("escalationStartEvent", escalationStartEvent.getProperties().get(BpmnProperties.TYPE));
+    assertEquals(EventSubProcessStartEventActivityBehavior.class, escalationStartEvent.getActivityBehavior().getClass());
   }
 
   protected void assertActivityBounds(ActivityImpl activity, int x, int y, int width, int height) {
@@ -443,7 +512,7 @@ public class BpmnParseTest extends PluggableProcessEngineTestCase {
       assertEquals(waypoints[i], sequenceFlow.getWaypoints().get(i));
     }
   }
-  
+
   protected ActivityImpl findActivityInDeployedProcessDefinition(String activityId) {
     ProcessDefinition processDefinition = repositoryService.createProcessDefinitionQuery().singleResult();
     assertNotNull(processDefinition);

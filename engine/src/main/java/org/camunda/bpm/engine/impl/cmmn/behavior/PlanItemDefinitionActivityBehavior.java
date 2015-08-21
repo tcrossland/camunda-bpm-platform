@@ -18,16 +18,18 @@ import static org.camunda.bpm.engine.impl.cmmn.handler.ItemHandler.PROPERTY_REPE
 import static org.camunda.bpm.engine.impl.cmmn.handler.ItemHandler.PROPERTY_REQUIRED_RULE;
 import static org.camunda.bpm.engine.impl.util.EnsureUtil.ensureNotNull;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.camunda.bpm.engine.exception.cmmn.CaseIllegalStateTransitionException;
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.cmmn.CaseControlRule;
 import org.camunda.bpm.engine.impl.cmmn.execution.CaseExecutionState;
 import org.camunda.bpm.engine.impl.cmmn.execution.CmmnActivityExecution;
+import org.camunda.bpm.engine.impl.cmmn.execution.CmmnExecution;
 import org.camunda.bpm.engine.impl.cmmn.model.CmmnActivity;
 import org.camunda.bpm.engine.impl.cmmn.model.CmmnSentryDeclaration;
 import org.camunda.bpm.engine.impl.pvm.PvmException;
-import org.camunda.bpm.engine.impl.util.EnsureUtil;
 
 
 /**
@@ -36,55 +38,34 @@ import org.camunda.bpm.engine.impl.util.EnsureUtil;
  */
 public abstract class PlanItemDefinitionActivityBehavior implements CmmnActivityBehavior {
 
+  protected static final CmmnBehaviorLogger LOG = ProcessEngineLogger.CMNN_BEHAVIOR_LOGGER;
+
   public void execute(CmmnActivityExecution execution) throws Exception {
     // nothing to do!
   }
 
   // sentries //////////////////////////////////////////////////////////////////////////////
 
-  protected boolean isAtLeastOneEntryCriteriaSatisfied(CmmnActivityExecution execution) {
-    CmmnActivity activity = getActivity(execution);
-
-    List<CmmnSentryDeclaration> entryCriteria = activity.getEntryCriteria();
-
-    if (entryCriteria != null && !entryCriteria.isEmpty()) {
-      return isSentrySatisified(entryCriteria, execution);
-
-    } else {
-      // missing entry criteria (Sentry) is considered true.
+  protected boolean isAtLeastOneEntryCriterionSatisfied(CmmnActivityExecution execution) {
+    if (execution.isEntryCriterionSatisfied()) {
       return true;
     }
-  }
 
-  protected boolean isAtLeastOneExitCriteriaSatisfied(CmmnActivityExecution execution) {
     CmmnActivity activity = getActivity(execution);
 
-    List<CmmnSentryDeclaration> exitCriteria = activity.getExitCriteria();
-
-    if (exitCriteria != null && !exitCriteria.isEmpty()) {
-      return isSentrySatisified(exitCriteria, execution);
-
-    } else {
-      return false;
-    }
-  }
-
-  protected boolean isSentrySatisified(List<CmmnSentryDeclaration> sentryDeclarations, CmmnActivityExecution execution) {
-    String id = execution.getId();
-    CmmnActivityExecution parent = execution.getParent();
-    EnsureUtil.ensureNotNull(PvmException.class, "Case execution '"+id+"': has no parent.", "parent", parent);
-
-    for (CmmnSentryDeclaration sentryDeclaration : sentryDeclarations) {
-
-      if (sentryDeclaration != null) {
-        String sentryId = sentryDeclaration.getId();
-        if (parent.isSentrySatisfied(sentryId)) {
-          return true;
-        }
+    List<CmmnSentryDeclaration> criteria = activity.getEntryCriteria();
+    if (execution.isRepetition()) {
+      List<CmmnSentryDeclaration> repetitionCriteria = activity.getRepetitionCriteria();
+      if (repetitionCriteria != null && !repetitionCriteria.isEmpty()) {
+        criteria = repetitionCriteria;
       }
     }
 
-    return false;
+    return !(criteria != null && !criteria.isEmpty());
+  }
+
+  protected boolean isAtLeastOneExitCriterionSatisfied(CmmnActivityExecution execution) {
+    return execution.isExitCriterionSatisfied();
   }
 
   // rules (required and repetition rule) /////////////////////////////////////////
@@ -106,8 +87,8 @@ public abstract class PlanItemDefinitionActivityBehavior implements CmmnActivity
     Object repetitionRule = activity.getProperty(PROPERTY_REPETITION_RULE);
     if (repetitionRule != null) {
       CaseControlRule rule = (CaseControlRule) repetitionRule;
-      rule.evaluate(execution);
-      // TODO: set the value on execution?
+      boolean repeatable = rule.evaluate(execution);
+      execution.setRepeatable(repeatable);
     }
   }
 
@@ -146,18 +127,15 @@ public abstract class PlanItemDefinitionActivityBehavior implements CmmnActivity
     if (execution.isCaseInstanceExecution()) {
 
       if (execution.isClosed()) {
-        String message = "Case instance'"+id+"' is already closed.";
-        throw createIllegalStateTransitionException("close", message, execution);
+        throw LOG.alreadyClosedCaseException("close", id);
       }
 
       if (execution.isActive()) {
-        String message = "Case instance '"+id+"' must be {completed|terminated|suspended} to close it, but was 'active'.";
-        throw createIllegalStateTransitionException("close", message, execution);
+        throw LOG.wrongCaseStateException("close", id, "[completed|terminated|suspended]", "active");
       }
 
     } else {
-      String message = "It is not possible to close case execution '"+id+"' which is not a case instance.";
-      throw createIllegalStateTransitionException("close", message, execution);
+      throw LOG.notACaseInstanceException("close", id);
     }
   }
 
@@ -205,6 +183,28 @@ public abstract class PlanItemDefinitionActivityBehavior implements CmmnActivity
     // noop
   }
 
+  // repetition ///////////////////////////////////////////////////////////////
+
+  public void repeat(CmmnActivityExecution execution) {
+    // a case execution can only repeated,
+    // iff execution.isRepeatable() == true
+    if (execution.isRepeatable()) {
+      CmmnActivity activity = execution.getActivity();
+      CmmnActivityExecution parent = execution.getParent();
+
+      // instantiate a new instance of given activity
+      List<CmmnExecution> children = parent.createChildExecutions(Arrays.asList(activity));
+      CmmnExecution newInstance = children.get(0);
+
+      // set flag to note that the new instance is a repetition
+      // -> the activity has been executed at least one times.
+      newInstance.setRepetition(true);
+
+      // start the lifecycle of the new instance
+      parent.triggerChildExecutionsLifecycle(children);
+    }
+  }
+
   // helper //////////////////////////////////////////////////////////////////////
 
   protected void ensureTransitionAllowed(CmmnActivityExecution execution, CaseExecutionState expected, CaseExecutionState target, String transition) {
@@ -222,30 +222,20 @@ public abstract class PlanItemDefinitionActivityBehavior implements CmmnActivity
 
     // is the case execution already in the target state
     if (target.equals(currentState)) {
-      String message = "Case execution '"+id+"' is already "+target+".";
-      throw createIllegalStateTransitionException(transition, message, execution);
+      throw LOG.isAlreadyInStateException(transition, id, target);
 
     } else
     // is the case execution in the expected state
     if (!expected.equals(currentState)) {
-      String message = "Case execution '"+id+"' must be "+expected+" to "+transition+" it, but was "+currentState+".";
-      throw createIllegalStateTransitionException(transition, message, execution);
-
+      throw LOG.unexpectedStateException(transition, id, expected, currentState);
     }
   }
 
   protected void ensureNotCaseInstance(CmmnActivityExecution execution, String transition) {
     if (execution.isCaseInstanceExecution()) {
       String id = execution.getId();
-      String message = "It is not possible to "+transition+" case instance '"+id+"'.";
-      throw createIllegalStateTransitionException(transition, message, execution);
+      throw LOG.impossibleTransitionException(transition, id);
     }
-  }
-
-  protected CaseIllegalStateTransitionException createIllegalStateTransitionException(String transition, String message, CmmnActivityExecution execution) {
-    String id = execution.getId();
-    String errorMessage = String.format("Could not perform transition '%s' on case execution '%s': %s", transition, id, message);
-    return new CaseIllegalStateTransitionException(errorMessage);
   }
 
   protected CmmnActivity getActivity(CmmnActivityExecution execution) {

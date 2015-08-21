@@ -68,6 +68,7 @@ import org.camunda.bpm.engine.management.MetricsQuery;
 import org.camunda.bpm.engine.management.ProcessDefinitionStatistics;
 import org.camunda.bpm.engine.query.Query;
 import org.camunda.bpm.engine.repository.CaseDefinition;
+import org.camunda.bpm.engine.repository.DecisionDefinition;
 import org.camunda.bpm.engine.repository.Deployment;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.repository.Resource;
@@ -216,6 +217,7 @@ public abstract class MockProvider {
   public static final boolean EXAMPLE_PROCESS_DEFINITION_IS_SUSPENDED = true;
 
   public static final String ANOTHER_EXAMPLE_PROCESS_DEFINITION_ID = "aProcessDefinitionId:2";
+  public static final String EXAMPLE_PROCESS_DEFINTION_ID_LIST = EXAMPLE_PROCESS_DEFINITION_ID + "," + ANOTHER_EXAMPLE_PROCESS_DEFINITION_ID;
 
   public static final String EXAMPLE_ACTIVITY_ID = "anActivity";
   public static final String ANOTHER_EXAMPLE_ACTIVITY_ID = "anotherActivity";
@@ -385,6 +387,8 @@ public abstract class MockProvider {
   public static final String EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_END_TIME = "2014-04-23T18:42:43";
   public static final long EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_DURATION = 2000l;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REQUIRED = true;
+  public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPEATABLE = true;
+  public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPETITION = true;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_AVAILABLE = true;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_ENABLED = true;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_DISABLED = true;
@@ -506,6 +510,8 @@ public abstract class MockProvider {
 
   // case definition
   public static final String EXAMPLE_CASE_DEFINITION_ID = "aCaseDefnitionId";
+  public static final String ANOTHER_EXAMPLE_CASE_DEFINITION_ID = "anotherCaseDefnitionId";
+  public static final String EXAMPLE_CASE_DEFINITION_ID_LIST = EXAMPLE_CASE_DEFINITION_ID + "," + ANOTHER_EXAMPLE_CASE_DEFINITION_ID;
   public static final String EXAMPLE_CASE_DEFINITION_KEY = "aCaseDefinitionKey";
   public static final int EXAMPLE_CASE_DEFINITION_VERSION = 1;
   public static final String EXAMPLE_CASE_DEFINITION_CATEGORY = "aCaseDefinitionCategory";
@@ -534,6 +540,8 @@ public abstract class MockProvider {
   public static final String EXAMPLE_CASE_EXECUTION_ACTIVITY_TYPE = "anActivityType";
   public static final String EXAMPLE_CASE_EXECUTION_ACTIVITY_DESCRIPTION = "anActivityDescription";
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_REQUIRED = true;
+  public static final boolean EXAMPLE_CASE_EXECUTION_IS_REPEATABLE = true;
+  public static final boolean EXAMPLE_CASE_EXECUTION_IS_REPETITION = true;
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_ENABLED = true;
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_ACTIVE = true;
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_DISABLED = true;
@@ -548,6 +556,18 @@ public abstract class MockProvider {
   public static final TaskQueryDto EXAMPLE_FILTER_QUERY_DTO = TaskQueryDto.fromQuery(EXAMPLE_FILTER_QUERY);
   public static final Map<String, Object> EXAMPLE_FILTER_PROPERTIES = Collections.singletonMap("color", (Object) "#112233");
 
+  // decision definition
+  public static final String EXAMPLE_DECISION_DEFINITION_ID = "aDecisionDefinitionId";
+  public static final String ANOTHER_EXAMPLE_DECISION_DEFINITION_ID = "anotherDecisionDefinitionId";
+  public static final String EXAMPLE_DECISION_DEFINITION_ID_LIST = EXAMPLE_DECISION_DEFINITION_ID + "," + ANOTHER_EXAMPLE_DECISION_DEFINITION_ID;
+  public static final String EXAMPLE_DECISION_DEFINITION_KEY = "aDecisionDefinitionKey";
+  public static final int EXAMPLE_DECISION_DEFINITION_VERSION = 1;
+  public static final String EXAMPLE_DECISION_DEFINITION_CATEGORY = "aDecisionDefinitionCategory";
+  public static final String EXAMPLE_DECISION_DEFINITION_NAME = "aDecisionDefinitionName";
+  public static final String EXAMPLE_DECISION_DEFINITION_NAME_LIKE = "aDecisionDefinitionNameLike";
+  public static final String EXAMPLE_DECISION_DEFINITION_RESOURCE_NAME = "aDecisionDefinitionResourceName";
+  public static final String EXAMPLE_DECISION_DEFINITION_DIAGRAM_RESOURCE_NAME = "aResourceName.png";
+
   // historic job log
 
   public static final String EXAMPLE_HISTORIC_JOB_LOG_ID = "aHistoricJobLogId";
@@ -555,6 +575,7 @@ public abstract class MockProvider {
   public static final String EXAMPLE_HISTORIC_JOB_LOG_JOB_ID = "aJobId";
   public static final String EXAMPLE_HISTORIC_JOB_LOG_JOB_DUE_DATE = "2015-10-01T00:00:00";
   public static final int EXAMPLE_HISTORIC_JOB_LOG_JOB_RETRIES = 5;
+  public static final int EXAMPLE_HISTORIC_JOB_LOG_JOB_PRIORITY = 42;
   public static final String EXAMPLE_HISTORIC_JOB_LOG_JOB_EXCEPTION_MSG = "aJobExceptionMsg";
   public static final String EXAMPLE_HISTORIC_JOB_LOG_JOB_DEF_ID = "aJobDefId";
   public static final String EXAMPLE_HISTORIC_JOB_LOG_JOB_DEF_TYPE = "aJobDefType";
@@ -870,12 +891,29 @@ public abstract class MockProvider {
     return mocks;
   }
 
+  public static List<ProcessDefinition> createMockTwoDefinitions() {
+    List<ProcessDefinition> mocks = new ArrayList<ProcessDefinition>();
+    mocks.add(createMockDefinition());
+    mocks.add(createMockAnotherDefinition());
+    return mocks;
+  }
+
   public static ProcessDefinition createMockDefinition() {
     MockDefinitionBuilder builder = new MockDefinitionBuilder();
     ProcessDefinition mockDefinition = builder.id(EXAMPLE_PROCESS_DEFINITION_ID).category(EXAMPLE_PROCESS_DEFINITION_CATEGORY)
         .name(EXAMPLE_PROCESS_DEFINITION_NAME).key(EXAMPLE_PROCESS_DEFINITION_KEY).description(EXAMPLE_PROCESS_DEFINITION_DESCRIPTION)
         .version(EXAMPLE_PROCESS_DEFINITION_VERSION).resource(EXAMPLE_PROCESS_DEFINITION_RESOURCE_NAME).deploymentId(EXAMPLE_DEPLOYMENT_ID)
         .diagram(EXAMPLE_PROCESS_DEFINITION_DIAGRAM_RESOURCE_NAME).suspended(EXAMPLE_PROCESS_DEFINITION_IS_SUSPENDED).build();
+
+    return mockDefinition;
+  }
+
+  public static ProcessDefinition createMockAnotherDefinition() {
+    MockDefinitionBuilder builder = new MockDefinitionBuilder();
+    ProcessDefinition mockDefinition = builder.id(ANOTHER_EXAMPLE_PROCESS_DEFINITION_ID).category(EXAMPLE_PROCESS_DEFINITION_CATEGORY)
+      .name(EXAMPLE_PROCESS_DEFINITION_NAME).key(EXAMPLE_PROCESS_DEFINITION_KEY).description(EXAMPLE_PROCESS_DEFINITION_DESCRIPTION)
+      .version(EXAMPLE_PROCESS_DEFINITION_VERSION).resource(EXAMPLE_PROCESS_DEFINITION_RESOURCE_NAME).deploymentId(EXAMPLE_DEPLOYMENT_ID)
+      .diagram(EXAMPLE_PROCESS_DEFINITION_DIAGRAM_RESOURCE_NAME).suspended(EXAMPLE_PROCESS_DEFINITION_IS_SUSPENDED).build();
 
     return mockDefinition;
   }
@@ -973,6 +1011,7 @@ public abstract class MockProvider {
       .dueDate(DateTimeUtil.parseDate(EXAMPLE_DUE_DATE))
       .suspended(EXAMPLE_JOB_IS_SUSPENDED)
       .priority(EXAMPLE_JOB_PRIORITY)
+      .jobDefinitionId(EXAMPLE_JOB_DEFINITION_ID)
       .build();
     return mock;
   }
@@ -1054,7 +1093,7 @@ public abstract class MockProvider {
   }
 
   public static List<Authorization> createMockRevokeAuthorizations() {
-    return Arrays.asList(new Authorization[] { createMockRevokeAuthorization() });
+    return Arrays.asList(new Authorization[]{createMockRevokeAuthorization()});
   }
 
   public static List<Authorization> createMockGlobalAuthorizations() {
@@ -1161,6 +1200,8 @@ public abstract class MockProvider {
     when(mock.getEndTime()).thenReturn(DateTimeUtil.parseDate(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_END_TIME));
     when(mock.getDurationInMillis()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_DURATION);
     when(mock.isRequired()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REQUIRED);
+    when(mock.isRepeatable()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPEATABLE);
+    when(mock.isRepetition()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPETITION);
     when(mock.isAvailable()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_AVAILABLE);
     when(mock.isEnabled()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_ENABLED);
     when(mock.isDisabled()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_DISABLED);
@@ -1601,6 +1642,13 @@ public abstract class MockProvider {
     return mocks;
   }
 
+  public static List<CaseDefinition> createMockTwoCaseDefinitions() {
+    List<CaseDefinition> mocks = new ArrayList<CaseDefinition>();
+    mocks.add(createMockCaseDefinition());
+    mocks.add(createAnotherMockCaseDefinition());
+    return mocks;
+  }
+
   public static CaseDefinition createMockCaseDefinition() {
     MockCaseDefinitionBuilder builder = new MockCaseDefinitionBuilder();
 
@@ -1614,6 +1662,23 @@ public abstract class MockProvider {
         .diagram(EXAMPLE_CASE_DEFINITION_DIAGRAM_RESOURCE_NAME)
         .deploymentId(EXAMPLE_DEPLOYMENT_ID)
         .build();
+
+    return mockDefinition;
+  }
+
+  public static CaseDefinition createAnotherMockCaseDefinition() {
+    MockCaseDefinitionBuilder builder = new MockCaseDefinitionBuilder();
+
+    CaseDefinition mockDefinition = builder
+      .id(ANOTHER_EXAMPLE_CASE_DEFINITION_ID)
+      .category(EXAMPLE_CASE_DEFINITION_CATEGORY)
+      .name(EXAMPLE_CASE_DEFINITION_NAME)
+      .key(EXAMPLE_CASE_DEFINITION_KEY)
+      .version(EXAMPLE_CASE_DEFINITION_VERSION)
+      .resource(EXAMPLE_CASE_DEFINITION_RESOURCE_NAME)
+      .diagram(EXAMPLE_CASE_DEFINITION_DIAGRAM_RESOURCE_NAME)
+      .deploymentId(EXAMPLE_DEPLOYMENT_ID)
+      .build();
 
     return mockDefinition;
   }
@@ -1657,6 +1722,8 @@ public abstract class MockProvider {
     when(mock.getActivityType()).thenReturn(EXAMPLE_CASE_EXECUTION_ACTIVITY_TYPE);
     when(mock.getActivityDescription()).thenReturn(EXAMPLE_CASE_EXECUTION_ACTIVITY_DESCRIPTION);
     when(mock.isRequired()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_REQUIRED);
+    when(mock.isRepeatable()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_REPEATABLE);
+    when(mock.isRepetition()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_REPETITION);
     when(mock.isActive()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_ACTIVE);
     when(mock.isEnabled()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_ENABLED);
     when(mock.isDisabled()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_DISABLED);
@@ -1745,6 +1812,50 @@ public abstract class MockProvider {
 
   }
 
+  // decision definition
+  public static List<DecisionDefinition> createMockDecisionDefinitions() {
+    List<DecisionDefinition> mocks = new ArrayList<DecisionDefinition>();
+    mocks.add(createMockDecisionDefinition());
+    return mocks;
+  }
+
+  public static List<DecisionDefinition> createMockTwoDecisionDefinitions() {
+    List<DecisionDefinition> mocks = new ArrayList<DecisionDefinition>();
+    mocks.add(createMockDecisionDefinition());
+    mocks.add(createAnotherMockDecisionDefinition());
+    return mocks;
+  }
+
+  public static DecisionDefinition createMockDecisionDefinition() {
+    MockDecisionDefinitionBuilder builder = new MockDecisionDefinitionBuilder();
+
+    return builder
+      .id(EXAMPLE_DECISION_DEFINITION_ID)
+      .category(EXAMPLE_DECISION_DEFINITION_CATEGORY)
+      .name(EXAMPLE_DECISION_DEFINITION_NAME)
+      .key(EXAMPLE_DECISION_DEFINITION_KEY)
+      .version(EXAMPLE_DECISION_DEFINITION_VERSION)
+      .resource(EXAMPLE_DECISION_DEFINITION_RESOURCE_NAME)
+      .diagram(EXAMPLE_DECISION_DEFINITION_DIAGRAM_RESOURCE_NAME)
+      .deploymentId(EXAMPLE_DEPLOYMENT_ID)
+      .build();
+  }
+
+  public static DecisionDefinition createAnotherMockDecisionDefinition() {
+    MockDecisionDefinitionBuilder builder = new MockDecisionDefinitionBuilder();
+
+    return builder
+      .id(ANOTHER_EXAMPLE_DECISION_DEFINITION_ID)
+      .category(EXAMPLE_DECISION_DEFINITION_CATEGORY)
+      .name(EXAMPLE_DECISION_DEFINITION_NAME)
+      .key(EXAMPLE_DECISION_DEFINITION_KEY)
+      .version(EXAMPLE_DECISION_DEFINITION_VERSION)
+      .resource(EXAMPLE_DECISION_DEFINITION_RESOURCE_NAME)
+      .diagram(EXAMPLE_DECISION_DEFINITION_DIAGRAM_RESOURCE_NAME)
+      .deploymentId(EXAMPLE_DEPLOYMENT_ID)
+      .build();
+  }
+
   // Historic job log
 
   public static List<HistoricJobLog> createMockHistoricJobLogs() {
@@ -1762,6 +1873,7 @@ public abstract class MockProvider {
     when(mock.getJobId()).thenReturn(EXAMPLE_HISTORIC_JOB_LOG_JOB_ID);
     when(mock.getJobDueDate()).thenReturn(DateTimeUtil.parseDate(EXAMPLE_HISTORIC_JOB_LOG_JOB_DUE_DATE));
     when(mock.getJobRetries()).thenReturn(EXAMPLE_HISTORIC_JOB_LOG_JOB_RETRIES);
+    when(mock.getJobPriority()).thenReturn(EXAMPLE_HISTORIC_JOB_LOG_JOB_PRIORITY);
     when(mock.getJobExceptionMessage()).thenReturn(EXAMPLE_HISTORIC_JOB_LOG_JOB_EXCEPTION_MSG);
 
     when(mock.getJobDefinitionId()).thenReturn(EXAMPLE_HISTORIC_JOB_LOG_JOB_DEF_ID);

@@ -20,6 +20,8 @@
       CURRENT_STATE_,
       PREV_STATE_,
       REQUIRED_,
+      REPEATABLE_,
+      REPETITION_,
       REV_
     )
     values
@@ -35,6 +37,8 @@
       #{state, jdbcType=INTEGER},
       #{previous, jdbcType=INTEGER},
       #{required, jdbcType=BOOLEAN},
+      #{repeatable, jdbcType=BOOLEAN},
+      #{repetition, jdbcType=BOOLEAN},
       1
     )
   </insert>
@@ -73,6 +77,8 @@
     <result property="state" column="CURRENT_STATE_" jdbcType="INTEGER" />
     <result property="previous" column="PREV_STATE_" jdbcType="INTEGER" />
     <result property="required" column="REQUIRED_" jdbcType="BOOLEAN" />
+    <result property="repeatable" column="REPEATABLE_" jdbcType="BOOLEAN" />
+    <result property="repetition" column="REPETITION_" jdbcType="BOOLEAN" />
   </resultMap>
 
   <!-- CASE EXECUTION SELECT -->
@@ -174,7 +180,13 @@
       <if test="required">
         and RES.REQUIRED_ = ${trueConstant}
       </if>
-
+      <if test="repeatable">
+        and RES.REPEATABLE_ = ${trueConstant}
+      </if>
+      <if test="repetition">
+        and RES.REPETITION_ = ${trueConstant}
+      </if>
+      
       <if test="superProcessInstanceId != null">
         and RES.SUPER_EXEC_ IN (select ID_ from ${prefix}ACT_RU_EXECUTION where PROC_INST_ID_ = #{superProcessInstanceId})
       </if>

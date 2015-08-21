@@ -25,25 +25,7 @@ import org.camunda.bpm.engine.test.Deployment;
 public class DefaultJobPrioritizationBpmnTest extends PluggableProcessEngineTestCase {
 
   public void testDefaultProducePrioritizedJobsSetting() {
-    assertFalse(processEngineConfiguration.isProducePrioritizedJobs());
+    assertTrue(processEngineConfiguration.isProducePrioritizedJobs());
   }
 
-  @Deployment(resources = "org/camunda/bpm/engine/test/bpmn/job/jobPrioProcess.bpmn20.xml")
-  public void testJobPriority() {
-    // when
-    runtimeService
-      .createProcessInstanceByKey("jobPrioProcess")
-      .startBeforeActivity("task1")
-      .startBeforeActivity("task2")
-      .execute();
-
-    // then
-    List<Job> jobs = managementService.createJobQuery().list();
-    assertEquals(2, jobs.size());
-
-    for (Job job : jobs) {
-      assertNotNull(job);
-      assertEquals(0, job.getPriority());
-    }
-  }
 }

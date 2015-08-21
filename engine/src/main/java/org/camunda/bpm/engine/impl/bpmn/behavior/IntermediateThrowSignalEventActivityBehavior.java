@@ -16,9 +16,8 @@ package org.camunda.bpm.engine.impl.bpmn.behavior;
 import static org.camunda.bpm.engine.impl.util.EnsureUtil.ensureNotNull;
 
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.bpmn.parser.EventSubscriptionDeclaration;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.persistence.deploy.DeploymentCache;
@@ -36,7 +35,7 @@ import org.camunda.bpm.engine.impl.pvm.process.ActivityImpl;
  */
 public class IntermediateThrowSignalEventActivityBehavior extends AbstractBpmnActivityBehavior {
 
-  private final static Logger LOGGER = Logger.getLogger(IntermediateThrowSignalEventActivityBehavior.class.getName());
+  protected final static BpmnBehaviorLogger LOG = ProcessEngineLogger.BPMN_BEHAVIOR_LOGGER;
 
   protected final EventSubscriptionDeclaration signalDefinition;
 
@@ -60,9 +59,18 @@ public class IntermediateThrowSignalEventActivityBehavior extends AbstractBpmnAc
     leave(execution);
   }
 
-  private boolean isActiveEventSubscription(SignalEventSubscriptionEntity signalEventSubscriptionEntity) {
+  protected boolean isActiveEventSubscription(SignalEventSubscriptionEntity signalEventSubscriptionEntity) {
+    return isStartEventSubscription(signalEventSubscriptionEntity)
+        || isActiveIntermediateEventSubscription(signalEventSubscriptionEntity);
+  }
+
+  protected boolean isStartEventSubscription(SignalEventSubscriptionEntity signalEventSubscriptionEntity) {
+    return signalEventSubscriptionEntity.getExecutionId() == null;
+  }
+
+  protected boolean isActiveIntermediateEventSubscription(SignalEventSubscriptionEntity signalEventSubscriptionEntity) {
     ExecutionEntity execution = signalEventSubscriptionEntity.getExecution();
-    return execution == null || (!execution.isEnded() && !execution.isCanceled());
+    return execution != null && !execution.isEnded() && !execution.isCanceled();
   }
 
   protected void startProcessInstanceBySignal(SignalEventSubscriptionEntity eventSubscription) {
@@ -74,8 +82,7 @@ public class IntermediateThrowSignalEventActivityBehavior extends AbstractBpmnAc
     ProcessDefinitionEntity processDefinition = deploymentCache.findDeployedProcessDefinitionById(processDefinitionId);
     if (processDefinition == null || processDefinition.isSuspended()) {
       // ignore event subscription
-      LOGGER.log(Level.FINE, "Found event subscription with {0} but process definition {1} could not be found.",
-          new Object[] { eventSubscription, processDefinitionId });
+      LOG.ignoringEventSubscription(eventSubscription, processDefinitionId);
     } else {
 
       ActivityImpl signalStartEvent = processDefinition.findActivity(eventSubscription.getActivityId());

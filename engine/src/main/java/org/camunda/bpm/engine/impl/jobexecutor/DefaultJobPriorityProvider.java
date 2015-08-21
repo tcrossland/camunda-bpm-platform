@@ -37,6 +37,14 @@ public class DefaultJobPriorityProvider implements JobPriorityProvider {
 
   public static int DEFAULT_PRIORITY_ON_RESOLUTION_FAILURE = 0;
 
+  public static int getDefaultPriority() {
+    return DEFAULT_PRIORITY;
+  }
+
+  public static int getDefaultPriorityOnResolutionFailure() {
+    return DEFAULT_PRIORITY_ON_RESOLUTION_FAILURE;
+  }
+
   @Override
   public int determinePriority(ExecutionEntity execution, JobDeclaration<?, ?> jobDeclaration) {
 
@@ -55,38 +63,21 @@ public class DefaultJobPriorityProvider implements JobPriorityProvider {
       return processDefinitionPriority;
     }
 
-    return DEFAULT_PRIORITY;
+    return getDefaultPriority();
   }
 
   protected Integer getJobDefinitionPriority(ExecutionEntity execution, JobDeclaration<?, ?> jobDeclaration) {
-    String jobDefinitionId = jobDeclaration.getJobDefinitionId();
+    JobDefinitionEntity jobDefinition = getJobDefinitionFor(jobDeclaration);
 
-    if (jobDefinitionId != null) {
-      JobDefinitionEntity jobDefinition = Context.getCommandContext()
-          .getJobDefinitionManager().findById(jobDefinitionId);
-
-      if (jobDefinition != null) {
-        return jobDefinition.getOverridingJobPriority();
-      }
+    if (jobDefinition != null) {
+      return jobDefinition.getOverridingJobPriority();
     }
 
     return null;
   }
 
   protected Integer getProcessDefinitionPriority(ExecutionEntity execution, JobDeclaration<?, ?> jobDeclaration) {
-    ProcessDefinitionImpl processDefinition = null;
-
-    if (execution != null) {
-      processDefinition = execution.getProcessDefinition();
-    } else {
-      JobDefinitionEntity jobDefinition = getJobDefinitionFor(jobDeclaration);
-      if (jobDefinition != null) {
-        processDefinition = Context
-          .getProcessEngineConfiguration()
-          .getDeploymentCache()
-          .findDeployedProcessDefinitionById(jobDefinition.getProcessDefinitionId());
-      }
-    }
+    ProcessDefinitionImpl processDefinition = jobDeclaration.getProcessDefinition();
 
     if (processDefinition != null) {
       ParameterValueProvider priorityProvider = (ParameterValueProvider) processDefinition.getProperty(BpmnParse.PROPERTYNAME_JOB_PRIORITY);
@@ -100,9 +91,14 @@ public class DefaultJobPriorityProvider implements JobPriorityProvider {
   }
 
   protected JobDefinitionEntity getJobDefinitionFor(JobDeclaration<?, ?> jobDeclaration) {
-    return Context.getCommandContext()
-        .getJobDefinitionManager()
-        .findById(jobDeclaration.getJobDefinitionId());
+    if (jobDeclaration.getJobDefinitionId() != null) {
+      return Context.getCommandContext()
+          .getJobDefinitionManager()
+          .findById(jobDeclaration.getJobDefinitionId());
+    }
+    else {
+      return null;
+    }
   }
 
   protected Integer getActivityPriority(ExecutionEntity execution, JobDeclaration<?, ?> jobDeclaration) {
@@ -117,7 +113,7 @@ public class DefaultJobPriorityProvider implements JobPriorityProvider {
   }
 
   protected Integer evaluateValueProvider(ParameterValueProvider valueProvider, ExecutionEntity execution, JobDeclaration<?, ?> jobDeclaration) {
-    Object value = null;
+    Object value;
     try {
       value = valueProvider.getValue(execution);
 
@@ -126,9 +122,10 @@ public class DefaultJobPriorityProvider implements JobPriorityProvider {
       if (Context.getProcessEngineConfiguration().isEnableGracefulDegradationOnContextSwitchFailure()
           && isSymptomOfContextSwitchFailure(e, execution)) {
 
+        value = getDefaultPriorityOnResolutionFailure();
+
         LOG.log(Level.WARNING, "Could not determine priority for job created in context of execution " + execution
-            + ". Using default priority " + DEFAULT_PRIORITY_ON_RESOLUTION_FAILURE, e);
-        value = DefaultJobPriorityProvider.DEFAULT_PRIORITY_ON_RESOLUTION_FAILURE;
+            + ". Using default priority " + value, e);
       }
       else {
         throw e;

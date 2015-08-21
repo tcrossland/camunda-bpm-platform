@@ -13,7 +13,6 @@
 package org.camunda.bpm.identity.impl.ldap.posix;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.directory.server.core.DefaultDirectoryService;
 import org.apache.directory.server.core.entry.ServerEntry;
 import org.apache.directory.server.core.entry.ServerModification;
 import org.apache.directory.shared.ldap.entry.EntryAttribute;
@@ -33,11 +32,12 @@ import java.util.List;
 public class LdapPosixTestEnvironment extends LdapTestEnvironment {
 
   public LdapPosixTestEnvironment() {
-    super("ldap.posix.properties");
+    super();
   }
 
+  @Override
   public void init() throws Exception {
-    super.initializeDirectory();
+    initializeDirectory("target/ldap-posix-work");
 
     // Enable POSIX groups in ApacheDS
     LdapDN nis = new LdapDN("cn=nis,ou=schema");
@@ -51,7 +51,7 @@ public class LdapPosixTestEnvironment extends LdapTestEnvironment {
         modifications.add(new ServerModification(ModificationOperation.REPLACE_ATTRIBUTE, nisDisabled));
         service.getAdminSession().modify(nis, modifications);
         service.shutdown();
-        initializeDirectory(); // Note: This instantiates service again for schema modifications to take effect.
+        initializeDirectory("target/ldap-posix-work"); // Note: This instantiates service again for schema modifications to take effect.
       }
     }
 
