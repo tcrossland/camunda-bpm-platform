@@ -12,14 +12,14 @@
   </filter-mapping>
   
   <!-- Http Basic Authentication Filter -->
-  <!-- <filter>
+  <filter>
     <filter-name>camunda-auth</filter-name>
     <filter-class>
       org.camunda.bpm.engine.rest.security.auth.ProcessEngineAuthenticationFilter
     </filter-class>
     <init-param>
       <param-name>authentication-provider</param-name>
-      <param-value>org.camunda.bpm.engine.rest.security.auth.impl.HttpBasicAuthenticationProvider</param-value>
+      <param-value>org.camunda.bpm.engine.rest.security.auth.impl.HttpBasicUsernameAuthenticationProvider</param-value>
     </init-param>
     <init-param>
 	    <param-name>rest-url-pattern-prefix</param-name>
@@ -30,7 +30,7 @@
   <filter-mapping>
     <filter-name>camunda-auth</filter-name>
     <url-pattern>/*</url-pattern>
-  </filter-mapping> -->
+  </filter-mapping>
 
   <filter>
       <filter-name>Resteasy</filter-name>
