@@ -31,6 +31,7 @@ create table ACT_RE_DEPLOYMENT (
     ID_ NVARCHAR2(64),
     NAME_ NVARCHAR2(255),
     DEPLOY_TIME_ TIMESTAMP(6),
+    SOURCE_ NVARCHAR2(255),
     primary key (ID_)
 );
 
@@ -77,7 +78,7 @@ create table ACT_RU_JOB (
     DEPLOYMENT_ID_ NVARCHAR2(64),
     SUSPENSION_STATE_ INTEGER,
     JOB_DEF_ID_ NVARCHAR2(64),
-    PRIORITY_ INTEGER DEFAULT 0 NOT NULL,
+    PRIORITY_ NUMBER(19,0) DEFAULT 0 NOT NULL,
     SEQUENCE_COUNTER_ NUMBER(19,0),
     primary key (ID_)
 );
@@ -91,7 +92,7 @@ create table ACT_RU_JOBDEF (
     JOB_TYPE_ NVARCHAR2(255) NOT NULL,
     JOB_CONFIGURATION_ NVARCHAR2(255),
     SUSPENSION_STATE_ INTEGER,
-    JOB_PRIORITY_ INTEGER,
+    JOB_PRIORITY_ NUMBER(19,0),
     primary key (ID_)
 );
 
@@ -227,6 +228,24 @@ create table ACT_RU_METER_LOG (
   primary key (ID_)
 );
 
+create table ACT_RU_EXT_TASK (
+  ID_ NVARCHAR2(64) not null,
+  REV_ integer not null,
+  WORKER_ID_ NVARCHAR2(255),
+  TOPIC_NAME_ NVARCHAR2(255),
+  RETRIES_ INTEGER,
+  ERROR_MSG_ NVARCHAR2(2000),
+  LOCK_EXP_TIME_ TIMESTAMP(6),
+  SUSPENSION_STATE_ integer,
+  EXECUTION_ID_ NVARCHAR2(64),
+  PROC_INST_ID_ NVARCHAR2(64),
+  PROC_DEF_ID_ NVARCHAR2(64),
+  PROC_DEF_KEY_ NVARCHAR2(255),
+  ACT_ID_ NVARCHAR2(255),
+  ACT_INST_ID_ NVARCHAR2(64),
+  primary key (ID_)
+);
+
 create index ACT_IDX_EXEC_BUSKEY on ACT_RU_EXECUTION(BUSINESS_KEY_);
 create index ACT_IDX_TASK_CREATE on ACT_RU_TASK(CREATE_TIME_);
 create index ACT_IDX_TASK_ASSIGNEE on ACT_RU_TASK(ASSIGNEE_);
@@ -237,8 +256,10 @@ create index ACT_IDX_VARIABLE_TASK_ID on ACT_RU_VARIABLE(TASK_ID_);
 create index ACT_IDX_INC_CONFIGURATION on ACT_RU_INCIDENT(CONFIGURATION_);
 create index ACT_IDX_JOB_PROCINST on ACT_RU_JOB(PROCESS_INSTANCE_ID_);
 create index ACT_IDX_METER_LOG on ACT_RU_METER_LOG(NAME_,TIMESTAMP_);
+create index ACT_IDX_EXT_TASK_TOPIC on ACT_RU_EXT_TASK(TOPIC_NAME_);
 
 create index ACT_IDX_BYTEAR_DEPL on ACT_GE_BYTEARRAY(DEPLOYMENT_ID_);
+
 alter table ACT_GE_BYTEARRAY
     add constraint ACT_FK_BYTEARR_DEPL
     foreign key (DEPLOYMENT_ID_) 
@@ -355,7 +376,7 @@ alter table ACT_RU_INCIDENT
 alter table ACT_RU_INCIDENT
     add constraint ACT_FK_INC_RCAUSE 
     foreign key (ROOT_CAUSE_INCIDENT_ID_) 
-    references ACT_RU_INCIDENT (ID_);   
+    references ACT_RU_INCIDENT (ID_); 
     
 -- see http://stackoverflow.com/questions/675398/how-can-i-constrain-multiple-columns-to-prevent-duplicates-but-ignore-null-value
 create unique index ACT_UNIQ_AUTH_USER on ACT_RU_AUTHORIZATION
@@ -374,9 +395,24 @@ alter table ACT_RU_VARIABLE
     add constraint ACT_UNIQ_VARIABLE
     unique (VAR_SCOPE_, NAME_);
 
+alter table ACT_RU_EXT_TASK
+    add constraint ACT_FK_EXT_TASK_EXE 
+    foreign key (EXECUTION_ID_) 
+    references ACT_RU_EXECUTION (ID_);
+
 -- indexes for deadlock problems - https://app.camunda.com/jira/browse/CAM-2567 --
 create index ACT_IDX_INC_CAUSEINCID on ACT_RU_INCIDENT(CAUSE_INCIDENT_ID_);
 create index ACT_IDX_INC_EXID on ACT_RU_INCIDENT(EXECUTION_ID_);
 create index ACT_IDX_INC_PROCDEFID on ACT_RU_INCIDENT(PROC_DEF_ID_);
 create index ACT_IDX_INC_PROCINSTID on ACT_RU_INCIDENT(PROC_INST_ID_);
 create index ACT_IDX_INC_ROOTCAUSEINCID on ACT_RU_INCIDENT(ROOT_CAUSE_INCIDENT_ID_);
+-- index for deadlock problem - https://app.camunda.com/jira/browse/CAM-4440 --
+create index ACT_IDX_AUTH_RESOURCE_ID on ACT_RU_AUTHORIZATION(RESOURCE_ID_);
+
+-- indexes to improve deployment
+create index ACT_IDX_BYTEARRAY_NAME on ACT_GE_BYTEARRAY(NAME_);
+create index ACT_IDX_DEPLOYMENT_NAME on ACT_RE_DEPLOYMENT(NAME_);
+create index ACT_IDX_JOBDEF_PROC_DEF_ID ON ACT_RU_JOBDEF(PROC_DEF_ID_);
+create index ACT_IDX_JOB_HANDLER_TYPE ON ACT_RU_JOB(HANDLER_TYPE_);
+create index ACT_IDX_EVENT_SUBSCR_EVT_NAME ON ACT_RU_EVENT_SUBSCR(EVENT_NAME_);
+create index ACT_IDX_PROCDEF_DEPLOYMENT_ID ON ACT_RE_PROCDEF(DEPLOYMENT_ID_);

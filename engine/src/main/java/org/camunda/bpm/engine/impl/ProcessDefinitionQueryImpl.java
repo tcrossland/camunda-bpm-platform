@@ -71,10 +71,6 @@ public class ProcessDefinitionQueryImpl extends AbstractQuery<ProcessDefinitionQ
   public ProcessDefinitionQueryImpl() {
   }
 
-  public ProcessDefinitionQueryImpl(CommandContext commandContext) {
-    super(commandContext);
-  }
-
   public ProcessDefinitionQueryImpl(CommandExecutor commandExecutor) {
     super(commandExecutor);
   }
@@ -144,7 +140,8 @@ public class ProcessDefinitionQueryImpl extends AbstractQuery<ProcessDefinitionQ
   }
 
   public ProcessDefinitionQueryImpl processDefinitionVersion(Integer version) {
-    ensurePositive("version", version);
+    ensureNotNull("version", version);
+    ensurePositive("version", version.longValue());
     this.version = version;
     return this;
   }

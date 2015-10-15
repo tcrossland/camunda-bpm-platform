@@ -14,14 +14,14 @@ package org.camunda.bpm.engine.rest.dto.runtime;
 
 public class JobDefinitionPriorityDto {
 
-  protected Integer priority;
+  protected Long priority;
   protected boolean includeJobs = false;
 
-  public Integer getPriority() {
+  public Long getPriority() {
     return priority;
   }
 
-  public void setPriority(Integer priority) {
+  public void setPriority(Long priority) {
     this.priority = priority;
   }
 

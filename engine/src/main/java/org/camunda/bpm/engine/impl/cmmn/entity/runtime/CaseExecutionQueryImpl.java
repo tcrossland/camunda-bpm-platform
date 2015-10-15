@@ -51,12 +51,9 @@ public class CaseExecutionQueryImpl extends AbstractVariableQueryImpl<CaseExecut
   protected String subProcessInstanceId;
   protected String superCaseInstanceId;
   protected String subCaseInstanceId;
+  protected String deploymentId;
 
   public CaseExecutionQueryImpl() {
-  }
-
-  public CaseExecutionQueryImpl(CommandContext commandContext) {
-    super(commandContext);
   }
 
   public CaseExecutionQueryImpl(CommandExecutor commandExecutor) {
@@ -262,6 +259,10 @@ public class CaseExecutionQueryImpl extends AbstractVariableQueryImpl<CaseExecut
 
   public String getSubCaseInstanceId() {
     return subCaseInstanceId;
+  }
+
+  public String getDeploymentId() {
+    return deploymentId;
   }
 
   public Boolean isRequired() {

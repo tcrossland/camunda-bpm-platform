@@ -47,14 +47,10 @@ public class HistoricJobLogQueryImpl extends AbstractQuery<HistoricJobLogQuery, 
   protected String processDefinitionKey;
   protected String deploymentId;
   protected JobState state;
-  protected Integer jobPriorityHigherThanOrEqual;
-  protected Integer jobPriorityLowerThanOrEqual;
+  protected Long jobPriorityHigherThanOrEqual;
+  protected Long jobPriorityLowerThanOrEqual;
 
   public HistoricJobLogQueryImpl() {
-  }
-
-  public HistoricJobLogQueryImpl(CommandContext commandContext) {
-    super(commandContext);
   }
 
   public HistoricJobLogQueryImpl(CommandExecutor commandExecutor) {
@@ -139,12 +135,12 @@ public class HistoricJobLogQueryImpl extends AbstractQuery<HistoricJobLogQuery, 
     return this;
   }
 
-  public HistoricJobLogQuery jobPriorityHigherThanOrEquals(int priority) {
+  public HistoricJobLogQuery jobPriorityHigherThanOrEquals(long priority) {
     this.jobPriorityHigherThanOrEqual = priority;
     return this;
   }
 
-  public HistoricJobLogQuery jobPriorityLowerThanOrEquals(int priority) {
+  public HistoricJobLogQuery jobPriorityLowerThanOrEquals(long priority) {
     this.jobPriorityLowerThanOrEqual = priority;
     return this;
   }

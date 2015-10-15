@@ -16,6 +16,7 @@ package org.camunda.bpm.engine.test.bpmn.sequenceflow;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.impl.test.PluggableProcessEngineTestCase;
 import org.camunda.bpm.engine.task.Task;
 import org.camunda.bpm.engine.test.Deployment;
@@ -41,6 +42,16 @@ public class ConditionalScriptSequenceFlowTest extends PluggableProcessEngineTes
 
   }
 
+  @Deployment
+  public void testScriptExpressionWithNonBooleanResult() {
+    try {
+      runtimeService.startProcessInstanceByKey("process");
+      fail("expected exception: invalid return value in script");
+    } catch (ProcessEngineException e) {
+      assertTextPresent("condition script returns non-Boolean", e.getMessage());
+    }
+  }
+
   @Deployment(resources = {
     "org/camunda/bpm/engine/test/bpmn/sequenceflow/ConditionalScriptSequenceFlowTest.testScriptResourceExpression.bpmn20.xml",
     "org/camunda/bpm/engine/test/bpmn/sequenceflow/condition-left.groovy"
@@ -58,6 +69,25 @@ public class ConditionalScriptSequenceFlowTest extends PluggableProcessEngineTes
       taskService.complete(task.getId());
     }
 
+  }
+
+  @Deployment(resources = {
+    "org/camunda/bpm/engine/test/bpmn/sequenceflow/ConditionalScriptSequenceFlowTest.testDmnCondition.bpmn20.xml",
+    "org/camunda/bpm/engine/test/bpmn/sequenceflow/ConditionalScriptSequenceFlowTest.condition-left.dmn10.xml",
+    "org/camunda/bpm/engine/test/bpmn/sequenceflow/ConditionalScriptSequenceFlowTest.condition-right.dmn10.xml"
+  })
+  public void testDmnCondition() {
+    String[] directions = new String[] { "left", "right" };
+    Map<String, Object> variables = new HashMap<String, Object>();
+
+    for (String direction : directions) {
+      variables.put("direction", direction);
+      runtimeService.startProcessInstanceByKey("process", variables);
+
+      Task task = taskService.createTaskQuery().singleResult();
+      assertEquals(direction, task.getTaskDefinitionKey());
+      taskService.complete(task.getId());
+    }
   }
 
 }

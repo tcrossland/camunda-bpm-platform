@@ -12,22 +12,24 @@
  */
 package org.camunda.bpm.engine.impl.db;
 
-import org.camunda.bpm.engine.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+import org.camunda.bpm.engine.AuthorizationException;
+import org.camunda.bpm.engine.BadUserRequestException;
+import org.camunda.bpm.engine.OptimisticLockingException;
+import org.camunda.bpm.engine.ProcessEngineException;
+import org.camunda.bpm.engine.SuspendedEntityInteractionException;
+import org.camunda.bpm.engine.WrongDbException;
 import org.camunda.bpm.engine.exception.NotValidException;
 import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.db.entitymanager.cache.CachedDbEntity;
 import org.camunda.bpm.engine.impl.db.entitymanager.cache.DbEntityState;
 import org.camunda.bpm.engine.impl.db.entitymanager.operation.DbOperation;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
-import org.camunda.bpm.engine.impl.persistence.entity.HistoricDetailVariableInstanceUpdateEntity;
-import org.camunda.bpm.engine.impl.persistence.entity.HistoricVariableInstanceEntity;
-import org.camunda.bpm.engine.impl.persistence.entity.VariableInstanceEntity;
 import org.camunda.bpm.engine.impl.util.ClassNameUtil;
 import org.camunda.bpm.model.xml.instance.ModelElementInstance;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
 
 /**
  * @author Stefan Hentschel.
@@ -38,15 +40,12 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
                                             "value=\"create-drop\" (use create-drop for testing only!) in bean " +
                                             "processEngineConfiguration in camunda.cfg.xml for automatic schema creation";
 
-  protected String buildStringFromList(Collection<?> list, Boolean isSQL) {
+  protected String buildStringFromList(Collection<?> list) {
     StringBuilder message = new StringBuilder();
     message.append("[");
     message.append("\n");
     for( Object object : list ) {
       message.append("  ");
-      if(isSQL) {
-        message.append("SQL: ");
-      }
       message.append(object.toString());
       message.append("\n");
     }
@@ -113,7 +112,7 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
       "Exception while executing Database Operation '{}' with message '{}'. Flush summary: \n {}",
       operation.toString(),
       cause.getMessage(),
-      buildStringFromList(operationsToFlush, false)
+      buildStringFromList(operationsToFlush)
     ), cause);
   }
 
@@ -127,7 +126,7 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
 
   public void flushedCacheState(List<CachedDbEntity> cachedEntities) {
     if(isDebugEnabled()) {
-      logDebug("006", "Cache state after flush: {}", buildStringFromList(cachedEntities, false));
+      logDebug("006", "Cache state after flush: {}", buildStringFromList(cachedEntities));
     }
 
   }
@@ -138,7 +137,7 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
 
   public void databaseFlushSummary(Collection<DbOperation> operations) {
    if(isDebugEnabled()) {
-     logDebug("008", "Flush Summary: {}", buildStringFromList(operations, false));
+     logDebug("008", "Flush Summary: {}", buildStringFromList(operations));
    }
   }
 
@@ -171,7 +170,7 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
         "011",
         "Retrieving process engine tables from: '{}'. Retrieved tables: {}",
         source,
-        buildStringFromList(tableNames, false)
+        buildStringFromList(tableNames)
       );
     }
   }
@@ -200,14 +199,13 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
     );
   }
 
-  public void performedDatabaseOperation(String operation, String component, String resourceName, List<String> logLines) {
+  public void performingDatabaseOperation(String operation, String component, String resourceName) {
     logInfo(
       "016",
-      "Performed operation '{}' on component '{}' with resource '{}': {}",
+      "Performing database operation '{}' on component '{}' with resource '{}'",
       operation,
       component,
-      resourceName,
-      buildStringFromList(logLines, true));
+      resourceName);
   }
 
   public void successfulDatabaseOperation(String operation, String component) {
@@ -369,19 +367,7 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
     return new ProcessEngineException(exceptionMessage("039", "Unsupported resource type '{}'", type));
   }
 
-  public ProcessEngineException serializerNotDefinedException(VariableInstanceEntity entity) {
-    return genericSerializerNotDefinedException(entity);
-  }
-
-  public ProcessEngineException serializerNotDefinedException(HistoricDetailVariableInstanceUpdateEntity entity) {
-    return genericSerializerNotDefinedException(entity);
-  }
-
-  public ProcessEngineException serializerNotDefinedException(HistoricVariableInstanceEntity entity) {
-    return genericSerializerNotDefinedException(entity);
-  }
-
-  public ProcessEngineException genericSerializerNotDefinedException(Object entity) {
+  public ProcessEngineException serializerNotDefinedException(Object entity) {
     return new ProcessEngineException(exceptionMessage("040", "No serializer defined for variable instance '{}'", entity));
   }
 
@@ -479,7 +465,7 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
     return new ProcessEngineException(exceptionMessage(
       "056",
       "Tables are missing for the following components: {}",
-      buildStringFromList(components, false)
+      buildStringFromList(components)
     ));
   }
 
@@ -493,5 +479,32 @@ public class EnginePersistenceLogger extends ProcessEngineLogger {
 
   public ProcessEngineException unableToFetchDbSchemaVersion(Throwable cause) {
     return new ProcessEngineException(exceptionMessage("058", "Could not fetch the database schema version."), cause);
+  }
+
+  public void failedTofetchVariableValue(Throwable cause) {
+    logDebug("059", "Could not fetch value for variable.", cause);
+  }
+
+  public ProcessEngineException historicDecisionInputInstancesNotFetchedException() {
+    return new ProcessEngineException(exceptionMessage(
+        "060",
+        "The input instances for the historic decision instance are not fetched. You must call 'includeInputs()' on the query to enable fetching."
+        ));
+  }
+
+  public ProcessEngineException historicDecisionOutputInstancesNotFetchedException() {
+    return new ProcessEngineException(exceptionMessage(
+        "061",
+        "The output instances for the historic decision instance are not fetched. You must call 'includeOutputs()' on the query to enable fetching."
+        ));
+  }
+
+  public void executingDDL(List<String> logLines) {
+    if(isDebugEnabled()) {
+      logDebug(
+          "062",
+          "Executing Schmema DDL {}",
+          buildStringFromList(logLines));
+    }
   }
 }

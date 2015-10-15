@@ -15,10 +15,12 @@ package org.camunda.bpm.engine.impl.scripting;
 import java.util.logging.Logger;
 
 import javax.script.Bindings;
+import javax.script.Compilable;
 import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+import org.camunda.bpm.engine.ScriptCompilationException;
 import org.camunda.bpm.engine.ScriptEvaluationException;
 import org.camunda.bpm.engine.delegate.BpmnError;
 import org.camunda.bpm.engine.delegate.VariableScope;
@@ -49,7 +51,7 @@ public class SourceExecutableScript extends CompiledExecutableScript {
   @Override
   public Object evaluate(ScriptEngine engine, VariableScope variableScope, Bindings bindings) {
     if (shouldBeCompiled) {
-      compileScript();
+      compileScript(engine);
     }
 
     if (getCompiledScript() != null) {
@@ -60,23 +62,49 @@ public class SourceExecutableScript extends CompiledExecutableScript {
     }
   }
 
-  protected void compileScript() {
+  protected void compileScript(ScriptEngine engine) {
     ProcessEngineConfigurationImpl processEngineConfiguration = Context.getProcessEngineConfiguration();
-    if (!processEngineConfiguration.isEnableScriptCompilation()) {
-      // if script compilation is disabled abort
-      shouldBeCompiled = false;
-    } else {
+    if (processEngineConfiguration.isEnableScriptEngineCaching() && processEngineConfiguration.isEnableScriptCompilation()) {
+
       if (getCompiledScript() == null && shouldBeCompiled) {
         synchronized (this) {
           if (getCompiledScript() == null && shouldBeCompiled) {
             // try to compile script
-            compiledScript = processEngineConfiguration.getScriptingEngines().compile(language, scriptSource);
+            compiledScript = compile(engine, language, scriptSource);
+
             // either the script was successfully compiled or it can't be
             // compiled but we won't try it again
             shouldBeCompiled = false;
           }
         }
       }
+
+    }
+    else {
+      // if script compilation is disabled abort
+      shouldBeCompiled = false;
+    }
+  }
+
+  public CompiledScript compile(ScriptEngine scriptEngine, String language, String src) {
+    if(scriptEngine instanceof Compilable && !scriptEngine.getFactory().getLanguageName().equalsIgnoreCase("ecmascript")) {
+      Compilable compilingEngine = (Compilable) scriptEngine;
+
+      try {
+        CompiledScript compiledScript = compilingEngine.compile(src);
+
+        LOG.fine("Compiled script using " + language + " script engine");
+
+        return compiledScript;
+
+      } catch (ScriptException e) {
+        throw new ScriptCompilationException("Unable to compile script: " + e.getMessage(), e);
+
+      }
+
+    } else {
+      // engine does not support compilation
+      return null;
     }
 
   }

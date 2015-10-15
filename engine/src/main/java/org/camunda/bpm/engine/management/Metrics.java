@@ -34,6 +34,13 @@ public class Metrics {
    */
   public final static String JOB_ACQUIRED_FAILURE = "job-acquired-failure";
 
+  /**
+   * Number of jobs that were submitted for execution but were rejected due to
+   * resource shortage. In the default job executor, this is the case when
+   * the execution queue is full.
+   */
+  public final static String JOB_EXECUTION_REJECTED = "job-execution-rejected";
+
   public final static String JOB_SUCCESSFUL = "job-successful";
   public final static String JOB_FAILED = "job-failed";
 
@@ -42,5 +49,10 @@ public class Metrics {
    * and created in the context of job execution
    */
   public final static String JOB_LOCKED_EXCLUSIVE = "job-locked-exclusive";
+
+  /**
+   * Number of executed decision elements in the DMN engine.
+   */
+  public final static String EXECUTED_DECISION_ELEMENTS = "executed-decision-elements";
 
 }

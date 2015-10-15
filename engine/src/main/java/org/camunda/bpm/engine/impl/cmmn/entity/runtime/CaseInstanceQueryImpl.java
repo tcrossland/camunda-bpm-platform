@@ -38,6 +38,7 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
   protected String businessKey;
   protected String caseDefinitionId;
   protected String caseDefinitionKey;
+  protected String deploymentId;
   protected CaseExecutionState state;
   protected String superProcessInstanceId;
   protected String subProcessInstanceId;
@@ -50,10 +51,6 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
   protected Boolean repetition;
 
   public CaseInstanceQueryImpl() {
-  }
-
-  public CaseInstanceQueryImpl(CommandContext commandContext) {
-    super(commandContext);
   }
 
   public CaseInstanceQueryImpl(CommandExecutor commandExecutor) {
@@ -81,6 +78,12 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
   public CaseInstanceQuery caseDefinitionId(String caseDefinitionId) {
     ensureNotNull(NotValidException.class, "caseDefinitionId", caseDefinitionId);
     this.caseDefinitionId = caseDefinitionId;
+    return this;
+  }
+
+  public CaseInstanceQuery deploymentId(String deploymentId) {
+    ensureNotNull(NotValidException.class, "deploymentId", deploymentId);
+    this.deploymentId = deploymentId;
     return this;
   }
 
@@ -183,6 +186,10 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
 
   public String getCaseDefinitionKey() {
     return caseDefinitionKey;
+  }
+
+  public String getDeploymentId() {
+    return deploymentId;
   }
 
   public CaseExecutionState getState() {

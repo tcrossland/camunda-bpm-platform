@@ -26,6 +26,7 @@ import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.identity.Group;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.db.PermissionCheck;
+import org.camunda.bpm.engine.impl.db.CompositePermissionCheck;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.interceptor.CommandExecutor;
 import org.camunda.bpm.engine.impl.persistence.entity.SuspensionState;
@@ -105,13 +106,9 @@ public class TaskQueryImpl extends AbstractQuery<TaskQuery, Task> implements Tas
   protected String caseExecutionId;
 
   // its a workaround to check authorization for standalone tasks
-  protected List<PermissionCheck> taskPermissionChecks = new ArrayList<PermissionCheck>();
+  protected CompositePermissionCheck taskPermissionChecks = new CompositePermissionCheck();
 
   public TaskQueryImpl() {
-  }
-
-  public TaskQueryImpl(CommandContext commandContext) {
-    super(commandContext);
   }
 
   public TaskQueryImpl(CommandExecutor commandExecutor) {
@@ -1148,6 +1145,11 @@ public class TaskQueryImpl extends AbstractQuery<TaskQuery, Task> implements Tas
     TaskQueryImpl extendingQuery = (TaskQueryImpl) extending;
     TaskQueryImpl extendedQuery = new TaskQueryImpl();
 
+    // only add add the base query's validators to the new query;
+    // this is because the extending query's validators may not be applicable to the base
+    // query and should therefore be executed before extending the query
+    extendedQuery.validators = new HashSet<Validator<AbstractQuery<?, ?>>>(validators);
+
     if (extendingQuery.getName() != null) {
       extendedQuery.taskName(extendingQuery.getName());
     }
@@ -1592,15 +1594,15 @@ public class TaskQueryImpl extends AbstractQuery<TaskQuery, Task> implements Tas
 
   // getter/setter for authorization check
 
-  public List<PermissionCheck> getTaskPermissionChecks() {
+  public CompositePermissionCheck getTaskPermissionChecks() {
     return taskPermissionChecks;
   }
 
   public void setTaskPermissionChecks(List<PermissionCheck> taskPermissionChecks) {
-    this.taskPermissionChecks = taskPermissionChecks;
+    this.taskPermissionChecks.setAtomicChecks(taskPermissionChecks);
   }
 
   public void addTaskPermissionCheck(PermissionCheck permissionCheck) {
-    taskPermissionChecks.add(permissionCheck);
+    taskPermissionChecks.addAtomicCheck(permissionCheck);
   }
 }

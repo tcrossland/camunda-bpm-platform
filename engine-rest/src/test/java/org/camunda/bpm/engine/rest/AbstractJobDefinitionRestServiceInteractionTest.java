@@ -1203,6 +1203,25 @@ public abstract class AbstractJobDefinitionRestServiceInteractionTest extends Ab
   }
 
   @Test
+  public void testSetJobPriorityToExtremeValue() {
+    Map<String, Object> priorityJson = new HashMap<String, Object>();
+    priorityJson.put("priority", Long.MAX_VALUE);
+
+    given()
+      .pathParam("id", MockProvider.EXAMPLE_JOB_DEFINITION_ID)
+      .contentType(ContentType.JSON)
+      .body(priorityJson)
+    .then()
+      .expect()
+      .statusCode(Status.NO_CONTENT.getStatusCode())
+    .when()
+      .put(JOB_DEFINITION_PRIORITY_URL);
+
+    verify(mockManagementService).setOverridingJobPriorityForJobDefinition(MockProvider.EXAMPLE_JOB_DEFINITION_ID,
+        Long.MAX_VALUE, false);
+  }
+
+  @Test
   public void testSetJobPriorityIncludeExistingJobs() {
     Map<String, Object> priorityJson = new HashMap<String, Object>();
     priorityJson.put("priority", MockProvider.EXAMPLE_JOB_DEFINITION_PRIORITY);

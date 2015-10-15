@@ -1054,6 +1054,22 @@ public abstract class AbstractJobRestServiceInteractionTest extends AbstractRest
   }
 
   @Test
+  public void testSetJobPriorityToExtremeValue() {
+    Map<String, Object> priorityJson = new HashMap<String, Object>();
+    priorityJson.put("priority", Long.MAX_VALUE);
+
+    given()
+      .pathParam("id", MockProvider.EXAMPLE_JOB_ID)
+      .contentType(ContentType.JSON)
+      .body(priorityJson)
+    .then().expect()
+      .statusCode(Status.NO_CONTENT.getStatusCode())
+    .when().put(JOB_RESOURCE_SET_PRIORITY_URL);
+
+    verify(mockManagementService).setJobPriority(MockProvider.EXAMPLE_JOB_ID, Long.MAX_VALUE);
+  }
+
+  @Test
   public void testSetJobPriorityNonExistentJob() {
     String expectedMessage = "No job found with id '" + MockProvider.NON_EXISTING_JOB_ID + "'.";
 
