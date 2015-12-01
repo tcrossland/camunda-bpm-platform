@@ -13,23 +13,35 @@
 
 package org.camunda.bpm.engine.impl.dmn.configuration;
 
-import org.camunda.bpm.dmn.engine.DmnScriptEngineResolver;
-import org.camunda.bpm.dmn.engine.impl.DmnEngineConfigurationImpl;
-import org.camunda.bpm.engine.impl.dmn.handler.ProcessEngineDmnElementHandlerRegistry;
+import org.camunda.bpm.dmn.engine.impl.DefaultDmnEngineConfiguration;
+import org.camunda.bpm.dmn.engine.impl.spi.el.DmnScriptEngineResolver;
+import org.camunda.bpm.engine.impl.dmn.el.ProcessEngineElProvider;
+import org.camunda.bpm.engine.impl.dmn.transformer.DecisionDefinitionHandler;
+import org.camunda.bpm.engine.impl.el.ExpressionManager;
 import org.camunda.bpm.engine.impl.history.parser.HistoryDecisionTableListener;
 import org.camunda.bpm.engine.impl.metrics.dmn.MetricsDecisionTableListener;
+import org.camunda.bpm.model.dmn.instance.DecisionTable;
 
-public class ProcessEngineDmnEngineConfiguration extends DmnEngineConfigurationImpl {
+public class ProcessEngineDmnEngineConfiguration extends DefaultDmnEngineConfiguration {
 
-  public ProcessEngineDmnEngineConfiguration(DmnScriptEngineResolver scriptEngineResolver, HistoryDecisionTableListener historyDecisionTableListener) {
+  protected ExpressionManager expressionManager;
+
+  public ProcessEngineDmnEngineConfiguration(
+      DmnScriptEngineResolver scriptEngineResolver,
+      HistoryDecisionTableListener historyDecisionTableListener,
+      ExpressionManager expressionManager) {
+
+    this.customPostDecisionTableEvaluationListeners.add(new MetricsDecisionTableListener());
+    this.customPostDecisionTableEvaluationListeners.add(historyDecisionTableListener);
     this.scriptEngineResolver = scriptEngineResolver;
-    this.customPostDmnDecisionTableListeners.add(new MetricsDecisionTableListener());
-  	this.customPostDmnDecisionTableListeners.add(historyDecisionTableListener);
+    this.expressionManager = expressionManager;
+    // override decision table handler
+    this.transformer.getElementTransformHandlerRegistry().addHandler(DecisionTable.class, new DecisionDefinitionHandler());
   }
 
-  protected void initElementHandlerRegistry() {
-    if (elementHandlerRegistry == null) {
-      elementHandlerRegistry = new ProcessEngineDmnElementHandlerRegistry();
+  protected void initElProvider() {
+    if(elProvider == null) {
+      elProvider = new ProcessEngineElProvider(expressionManager);
     }
   }
 

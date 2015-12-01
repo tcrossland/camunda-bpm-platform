@@ -35,22 +35,6 @@ alter table ACT_RE_DECISION_DEF
     add constraint ACT_UNIQ_DECISION_DEF
     unique (KEY_,VERSION_);
 
--- case execution repetition rule --
-
-ALTER TABLE ACT_RU_CASE_EXECUTION
-  ADD REPEATABLE_ tinyint;
-
-ALTER TABLE ACT_RU_CASE_EXECUTION
-  ADD REPETITION_ tinyint;
-
--- historic case activity instance repetition rule --
-
-ALTER TABLE ACT_HI_CASEACTINST
-  ADD REPEATABLE_ tinyint;
-
-ALTER TABLE ACT_HI_CASEACTINST
-  ADD REPETITION_ tinyint;
-
 -- case sentry part source --
 
 ALTER TABLE ACT_RU_CASE_SENTRY_PART
@@ -62,9 +46,12 @@ create table ACT_HI_DECINST (
     DEC_DEF_ID_ nvarchar(64) NOT NULL,
     DEC_DEF_KEY_ nvarchar(255) NOT NULL,
     DEC_DEF_NAME_ nvarchar(255),
-    PROC_DEF_KEY_ nvarchar(255),             
-    PROC_DEF_ID_ nvarchar(64),               
+    PROC_DEF_KEY_ nvarchar(255),
+    PROC_DEF_ID_ nvarchar(64),
     PROC_INST_ID_ nvarchar(64),
+    CASE_DEF_KEY_ nvarchar(255),
+    CASE_DEF_ID_ nvarchar(64),
+    CASE_INST_ID_ nvarchar(64),
     ACT_INST_ID_ nvarchar(64),
     ACT_ID_ nvarchar(255),
     EVAL_TIME_ datetime2 not null,
@@ -109,6 +96,7 @@ create table ACT_HI_DEC_OUT (
 create index ACT_IDX_HI_DEC_INST_ID on ACT_HI_DECINST(DEC_DEF_ID_);
 create index ACT_IDX_HI_DEC_INST_KEY on ACT_HI_DECINST(DEC_DEF_KEY_);
 create index ACT_IDX_HI_DEC_INST_PI on ACT_HI_DECINST(PROC_INST_ID_);
+create index ACT_IDX_HI_DEC_INST_CI on ACT_HI_DECINST(CASE_INST_ID_);
 create index ACT_IDX_HI_DEC_INST_ACT on ACT_HI_DECINST(ACT_ID_);
 create index ACT_IDX_HI_DEC_INST_ACT_INST on ACT_HI_DECINST(ACT_INST_ID_);
 create index ACT_IDX_HI_DEC_INST_TIME on ACT_HI_DECINST(EVAL_TIME_);
@@ -156,3 +144,21 @@ create index ACT_IDX_EXT_TASK_TOPIC on ACT_RU_EXT_TASK(TOPIC_NAME_);
 
 ALTER TABLE ACT_RE_DEPLOYMENT 
   ADD SOURCE_ nvarchar(255);
+
+ALTER TABLE ACT_HI_OP_LOG
+  ADD DEPLOYMENT_ID_ nvarchar(64);
+  
+-- job suspension state
+
+ALTER TABLE ACT_RU_JOB
+  ADD DEFAULT 1
+  FOR SUSPENSION_STATE_;
+
+  -- relevant for jobs created in Camunda 7.0
+UPDATE ACT_RU_JOB
+  SET SUSPENSION_STATE_ = 1
+  WHERE SUSPENSION_STATE_ IS NULL;
+  
+ALTER TABLE ACT_RU_JOB
+  ALTER COLUMN SUSPENSION_STATE_ tinyint
+  NOT NULL;

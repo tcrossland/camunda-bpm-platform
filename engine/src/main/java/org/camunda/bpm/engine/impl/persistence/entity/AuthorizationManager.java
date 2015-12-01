@@ -74,12 +74,14 @@ import org.camunda.bpm.engine.impl.UserOperationLogQueryImpl;
 import org.camunda.bpm.engine.impl.VariableInstanceQueryImpl;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.db.AuthorizationCheck;
+import org.camunda.bpm.engine.impl.db.CompositePermissionCheck;
 import org.camunda.bpm.engine.impl.db.DbEntity;
 import org.camunda.bpm.engine.impl.db.EnginePersistenceLogger;
 import org.camunda.bpm.engine.impl.db.ListQueryParameterObject;
 import org.camunda.bpm.engine.impl.db.PermissionCheck;
-import org.camunda.bpm.engine.impl.db.CompositePermissionCheck;
 import org.camunda.bpm.engine.impl.db.PermissionCheckBuilder;
+import org.camunda.bpm.engine.impl.dmn.entity.repository.DecisionDefinitionEntity;
+import org.camunda.bpm.engine.impl.dmn.entity.repository.DecisionDefinitionQueryImpl;
 import org.camunda.bpm.engine.impl.identity.Authentication;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.persistence.AbstractManager;
@@ -735,6 +737,10 @@ public class AuthorizationManager extends AbstractManager {
     checkAuthorization(DELETE_HISTORY, DECISION_DEFINITION, decisionDefinitionKey);
   }
 
+  public void checkEvaluateDecision(String decisionDefinitionKey) {
+    checkAuthorization(CREATE_INSTANCE, DECISION_DEFINITION, decisionDefinitionKey);
+  }
+
   /* QUERIES */
 
   // deployment query ////////////////////////////////////////
@@ -1112,6 +1118,18 @@ public class AuthorizationManager extends AbstractManager {
       .build();
 
     addPermissionCheck(parameter, permissionCheck);
+  }
+
+  public void configureDecisionDefinitionQuery(DecisionDefinitionQueryImpl query) {
+    configureQuery(query, DECISION_DEFINITION, "RES.KEY_");
+  }
+
+  public void checkReadDecisionDefinition(DecisionDefinitionEntity decisionDefinition) {
+    checkReadDecisionDefinition(decisionDefinition.getKey());
+  }
+
+  public void checkReadDecisionDefinition(String decisionDefinitionKey) {
+    checkAuthorization(READ, DECISION_DEFINITION, decisionDefinitionKey);
   }
 
 }

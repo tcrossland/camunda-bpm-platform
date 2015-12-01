@@ -31,9 +31,6 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
 
@@ -48,10 +45,10 @@ import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.apache.ibatis.transaction.managed.ManagedTransactionFactory;
 import org.camunda.bpm.dmn.engine.DmnEngine;
 import org.camunda.bpm.dmn.engine.DmnEngineConfiguration;
-import org.camunda.bpm.dmn.scriptengine.DmnScriptEngineFactory;
 import org.camunda.bpm.engine.ArtifactFactory;
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.DecisionService;
 import org.camunda.bpm.engine.ExternalTaskService;
 import org.camunda.bpm.engine.FilterService;
 import org.camunda.bpm.engine.FormService;
@@ -65,6 +62,7 @@ import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.impl.AuthorizationServiceImpl;
+import org.camunda.bpm.engine.impl.DecisionServiceImpl;
 import org.camunda.bpm.engine.impl.DefaultArtifactFactory;
 import org.camunda.bpm.engine.impl.ExternalTaskServiceImpl;
 import org.camunda.bpm.engine.impl.FilterServiceImpl;
@@ -240,11 +238,8 @@ import org.camunda.bpm.engine.impl.variable.serializer.DoubleValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.FileValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.IntegerValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.JavaObjectSerializer;
-import org.camunda.bpm.engine.impl.variable.serializer.LocalDateSerializer;
-import org.camunda.bpm.engine.impl.variable.serializer.LocalTimeSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.LongValueSerlializer;
 import org.camunda.bpm.engine.impl.variable.serializer.NullValueSerializer;
-import org.camunda.bpm.engine.impl.variable.serializer.PeriodSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.ShortValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.StringValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.TypedValueSerializer;
@@ -264,7 +259,7 @@ import org.camunda.bpm.engine.variable.type.ValueType;
  */
 public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfiguration {
 
-  private static Logger log = Logger.getLogger(ProcessEngineConfigurationImpl.class.getName());
+  private final static ConfigurationLogger LOG = ConfigurationLogger.CONFIG_LOGGER;
 
   public static final String DB_SCHEMA_UPDATE_CREATE = "create";
   public static final String DB_SCHEMA_UPDATE_DROP_CREATE = "drop-create";
@@ -291,6 +286,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected CaseService caseService = new CaseServiceImpl();
   protected FilterService filterService = new FilterServiceImpl();
   protected ExternalTaskService externalTaskService = new ExternalTaskServiceImpl();
+  protected DecisionService decisionService = new DecisionServiceImpl();
 
   // COMMAND EXECUTORS ////////////////////////////////////////////////////////
 
@@ -504,6 +500,13 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected boolean enableExpressionsInAdhocQueries = false;
   protected boolean enableExpressionsInStoredQueries = true;
 
+  /**
+   * If true, user operation log entries are only written if there is an
+   * authenticated user present in the context. If false, user operation log
+   * entries are written regardless of authentication state.
+   */
+  protected boolean restrictUserOperationLogToAuthenticatedUsers = true;
+
   protected boolean isBpmnStacktraceVerbose = false;
 
   protected boolean forceCloseMybatisConnectionPool = true;
@@ -569,11 +572,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
   protected void invokePreInit() {
     for (ProcessEnginePlugin plugin : processEnginePlugins) {
-
-      log.log(Level.INFO, "PLUGIN {0} activated on process engine {1}",
-          new String[]{plugin.getClass().getSimpleName(),
-          getProcessEngineName()});
-
+      LOG.pluginActivated(plugin.getClass().getSimpleName(), getProcessEngineName());
       plugin.preInit(this);
     }
   }
@@ -711,6 +710,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     initService(caseService);
     initService(filterService);
     initService(externalTaskService);
+    initService(decisionService);
   }
 
   protected void initService(Object service) {
@@ -734,8 +734,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         if ( (jdbcDriver==null) || (jdbcUrl==null) || (jdbcUsername==null) ) {
           throw new ProcessEngineException("DataSource or JDBC properties have to be specified in a process engine configuration");
         }
-
-        log.fine("initializing datasource to db: "+jdbcUrl);
 
         PooledDataSource pooledDataSource =
           new PooledDataSource(ReflectUtil.getClassLoader(), jdbcDriver, jdbcUrl, jdbcUsername, jdbcPassword );
@@ -810,10 +808,10 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
       connection = dataSource.getConnection();
       DatabaseMetaData databaseMetaData = connection.getMetaData();
       String databaseProductName = databaseMetaData.getDatabaseProductName();
-      log.fine("database product name: '" + databaseProductName + "'");
+      LOG.debugDatabaseproductName(databaseProductName);
       databaseType = databaseTypeMappings.getProperty(databaseProductName);
       ensureNotNull("couldn't deduct database type from database product name '" + databaseProductName + "'", "databaseType", databaseType);
-      log.fine("using database type: " + databaseType);
+      LOG.debugDatabaseType(databaseType);
 
     } catch (SQLException e) {
       e.printStackTrace();
@@ -1124,7 +1122,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected DmnDeployer getDmnDeployer() {
     DmnDeployer dmnDeployer = new DmnDeployer();
     dmnDeployer.setIdGenerator(idGenerator);
-    dmnDeployer.setTransformer(dmnEngineConfiguration.getTransformer());
+    dmnDeployer.setTransformer(((ProcessEngineDmnEngineConfiguration) dmnEngineConfiguration).getTransformer());
     return dmnDeployer;
   }
 
@@ -1132,8 +1130,16 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     return dmnEngine;
   }
 
+  public void setDmnEngine(DmnEngine dmnEngine) {
+    this.dmnEngine = dmnEngine;
+  }
+
   public DmnEngineConfiguration getDmnEngineConfiguration() {
     return dmnEngineConfiguration;
+  }
+
+  public void setDmnEngineConfiguration(DmnEngineConfiguration dmnEngineConfiguration) {
+    dmnEngineConfiguration = dmnEngineConfiguration;
   }
 
   // job executor /////////////////////////////////////////////////////////////
@@ -1217,9 +1223,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
       if(HISTORY_VARIABLE.equalsIgnoreCase(history)) {
         historyLevel = HistoryLevel.HISTORY_LEVEL_ACTIVITY;
-        log.warning("Using deprecated history level 'variable'. " +
-            "This history level is deprecated and replaced by 'activity'. " +
-            "Consider using 'ACTIVITY' instead.");
+        LOG.usingDeprecatedHistoryLevelVariable();
 
       } else {
         for (HistoryLevel historyLevel : historyLevels) {
@@ -1346,9 +1350,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
       variableSerializers.addSerializer(new IntegerValueSerializer());
       variableSerializers.addSerializer(new LongValueSerlializer());
       variableSerializers.addSerializer(new DateValueSerializer());
-      variableSerializers.addSerializer(new LocalDateSerializer());
-      variableSerializers.addSerializer(new LocalTimeSerializer());
-      variableSerializers.addSerializer(new PeriodSerializer());
       variableSerializers.addSerializer(new DoubleValueSerializer());
       variableSerializers.addSerializer(new ByteArrayValueSerializer());
       variableSerializers.addSerializer(new JavaObjectSerializer());
@@ -1438,7 +1439,10 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected void initDmnEngine() {
     if (dmnEngine == null) {
       if (dmnEngineConfiguration == null) {
-        dmnEngineConfiguration = new ProcessEngineDmnEngineConfiguration(scriptingEngines, new HistoryDecisionTableListener(dmnHistoryEventProducer, historyLevel));
+        dmnEngineConfiguration = new ProcessEngineDmnEngineConfiguration(
+            scriptingEngines,
+            new HistoryDecisionTableListener(dmnHistoryEventProducer, historyLevel),
+            expressionManager);
       }
       dmnEngine = dmnEngineConfiguration.buildEngine();
     }
@@ -1446,7 +1450,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
       dmnEngineConfiguration = dmnEngine.getConfiguration();
     }
 
-    scriptingEngines.addScriptEngineFactory(new DmnScriptEngineFactory(dmnEngine));
   }
 
   protected void initExpressionManager() {
@@ -1789,6 +1792,14 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
   public void setExternalTaskService(ExternalTaskService externalTaskService) {
     this.externalTaskService = externalTaskService;
+  }
+
+  public DecisionService getDecisionService() {
+    return decisionService;
+  }
+
+  public void setDecisionService(DecisionService decisionService) {
+    this.decisionService = decisionService;
   }
 
   public Map<Class< ? >, SessionFactory> getSessionFactories() {
@@ -2841,5 +2852,13 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     return this;
   }
 
+  public boolean isRestrictUserOperationLogToAuthenticatedUsers() {
+    return restrictUserOperationLogToAuthenticatedUsers;
+  }
+
+  public ProcessEngineConfigurationImpl setRestrictUserOperationLogToAuthenticatedUsers(boolean restrictUserOperationLogToAuthenticatedUsers) {
+    this.restrictUserOperationLogToAuthenticatedUsers = restrictUserOperationLogToAuthenticatedUsers;
+    return this;
+  }
 
 }

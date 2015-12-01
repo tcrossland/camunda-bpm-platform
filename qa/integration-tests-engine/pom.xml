@@ -7,8 +7,12 @@
   <parent>
     <groupId>org.camunda.bpm.qa</groupId>
     <artifactId>camunda-qa</artifactId>
-    <version>7.4.0-SNAPSHOT</version>
+    <version>7.5.0-SNAPSHOT</version>
   </parent>
+
+  <properties>
+    <redirect.test.output>true</redirect.test.output>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -75,8 +79,16 @@
       <scope>provided</scope>
       <exclusions>
         <exclusion>
-          <groupId>org.camunda.bpm.dmn</groupId>
-          <artifactId>camunda-scriptengine-juel</artifactId>
+          <groupId>de.odysseus.juel</groupId>
+          <artifactId>juel-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>de.odysseus.juel</groupId>
+          <artifactId>juel-spi</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>de.odysseus.juel</groupId>
+          <artifactId>juel-impl</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -236,16 +248,16 @@
               <excludes>
                 <!-- HEMERA-2453 -->
                 <exclude>**/JobExecutorRequestContextLocalInvocationTest.java</exclude>
-                <exclude>**_OTHERS.java</exclude>
+                <exclude>**/*_OTHERS.java</exclude>
                 <exclude>**/SpringPAExpressionResolvingTest.java</exclude>
                 <exclude>**/SpringServletPALifecycleTest.java</exclude>
-                <exclude>**/ManagedDomainTestCase_JBOSS.java</exclude>
+                <exclude>**/TestManagedDomain_JBOSS.java</exclude>
                 <!-- CAM-1778 -->
                 <exclude>**/TestWarDeploymentWithProcessEnginePlugin.java</exclude>
                 <exclude>**/TestWarDeploymentWithProcessEnginePlugin.exclude</exclude>
                 <exclude>**/JavascriptScriptEngineSupportTest.java</exclude>
               </excludes>
-             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -317,9 +329,9 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <includes>
-                <include>**/ManagedDomainTestCase_JBOSS.java</include>
+                <include>**/TestManagedDomain_JBOSS.java</include>
               </includes>
-             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+             <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -365,7 +377,7 @@
                 <exludes>**/TestWarDeploymentWithProcessEnginePlugin.java</exludes>
                 <exclude>**/JavascriptScriptEngineSupportTest.java</exclude>
               </excludes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -459,16 +471,16 @@
               <excludes>
                 <!-- HEMERA-2453 -->
                 <exclude>**/JobExecutorRequestContextLocalInvocationTest.java</exclude>
-                <exclude>**_OTHERS.java</exclude>
+                <exclude>**/*_OTHERS.java</exclude>
                 <exclude>**/SpringPAExpressionResolvingTest.java</exclude>
                 <exclude>**/SpringServletPALifecycleTest.java</exclude>
-                <exclude>**/ManagedDomainTestCase_JBOSS.java</exclude>
+                <exclude>**/TestManagedDomain_JBOSS.java</exclude>
                 <!-- CAM-1778 -->
                 <exclude>**/TestWarDeploymentWithProcessEnginePlugin.java</exclude>
                 <exclude>**/TestWarDeploymentWithProcessEnginePlugin.exclude</exclude>
                 <exclude>**/JavascriptScriptEngineSupportTest.java</exclude>
               </excludes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -558,9 +570,9 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <includes>
-                <include>**/ManagedDomainTestCase_JBOSS.java</include>
+                <include>**/TestManagedDomain_JBOSS.java</include>
               </includes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -606,7 +618,7 @@
                 <exludes>**/TestWarDeploymentWithProcessEnginePlugin.java</exludes>
                 <exclude>**/JavascriptScriptEngineSupportTest.java</exclude>
               </excludes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -679,7 +691,7 @@
 
                 <exclude>**/PythonPaClassImportTest.java</exclude>
               </excludes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
 
@@ -782,7 +794,7 @@
 
                 <exclude>**/PythonPaClassImportTest.java</exclude>
               </excludes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
 
@@ -942,7 +954,7 @@
 
                 <exclude>**/PythonPaClassImportTest.java</exclude>
               </excludes>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>
@@ -975,7 +987,7 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <skipTests>true</skipTests>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
           <plugin>
@@ -1027,7 +1039,7 @@
               <systemPropertyVariables>
                 <org.apache.maven.user-settings>../../settings.xml</org.apache.maven.user-settings>
               </systemPropertyVariables>
-              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <redirectTestOutputToFile>${redirect.test.output}</redirectTestOutputToFile>
             </configuration>
           </plugin>
         </plugins>

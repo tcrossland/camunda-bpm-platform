@@ -18,14 +18,19 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.camunda.bpm.engine.ProcessEngineException;
+import org.camunda.bpm.engine.authorization.Authorization;
 import org.camunda.bpm.engine.exception.NotValidException;
 import org.camunda.bpm.engine.exception.NullValueException;
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
+import org.camunda.bpm.engine.impl.context.Context;
 
 /**
  * @author Sebastian Menski
  * @author Roman Smirnov
  */
 public final class EnsureUtil {
+
+  private static final EngineUtilLogger LOG = ProcessEngineLogger.UTIL_LOGGER;
 
   public static void ensureNotNull(String variableName, Object value) {
     ensureNotNull("", variableName, value);
@@ -266,6 +271,10 @@ public final class EnsureUtil {
     ensureNotContainsNull(NullValueException.class, message, variableName, values);
   }
 
+  public static void ensureNotContainsNull(Class<? extends ProcessEngineException> exceptionClass, String variableName, Collection<?> values) {
+    ensureNotContainsNull(exceptionClass, null, variableName, values);
+  }
+
   public static void ensureNotContainsNull(Class<? extends ProcessEngineException> exceptionClass, String message, String variableName, Collection<?> values) {
     ensureNotNull(exceptionClass, message, variableName, values.toArray(new Object[values.size()]));
   }
@@ -288,6 +297,29 @@ public final class EnsureUtil {
     }
   }
 
+  public static void ensureValidIndividualResourceId(String message, String id) {
+    ensureValidIndividualResourceId(ProcessEngineException.class, message, id);
+  }
+
+  public static void ensureValidIndividualResourceId(Class<? extends ProcessEngineException> exceptionClass, String message, String id) {
+    ensureNotNull(exceptionClass, message, "id", id);
+    if (Authorization.ANY.equals(id)) {
+      throw generateException(exceptionClass, message, "id", "cannot be "
+          + Authorization.ANY + ". " + Authorization.ANY + " is a reserved identifier.");
+    }
+  }
+
+  public static void ensureValidIndividualResourceIds(String message, Collection<String> ids) {
+    ensureValidIndividualResourceIds(ProcessEngineException.class, message, ids);
+  }
+
+  public static void ensureValidIndividualResourceIds(Class<? extends ProcessEngineException> exceptionClass, String message, Collection<String> ids) {
+    ensureNotNull(exceptionClass, message, "id", ids);
+    for (String id : ids) {
+      ensureValidIndividualResourceId(exceptionClass, message, id);
+    }
+  }
+
   protected static <T extends ProcessEngineException> T generateException(Class<T> exceptionClass, String message, String variableName, String description) {
     String formattedMessage = formatMessage(message, variableName, description);
 
@@ -296,8 +328,9 @@ public final class EnsureUtil {
 
       return constructor.newInstance(formattedMessage);
 
-    } catch (Exception e) {
-      throw new ProcessEngineException("Couldn't instantiate class " + exceptionClass.getName(), e);
+    }
+    catch (Exception e) {
+      throw LOG.exceptionWhileInstantiatingClass(exceptionClass.getName(), e);
     }
 
   }
@@ -312,6 +345,12 @@ public final class EnsureUtil {
     }
     else {
       return "";
+    }
+  }
+
+  public static void ensureActiveCommandContext(String operation) {
+    if(Context.getCommandContext() == null) {
+      throw LOG.notInsideCommandContext(operation);
     }
   }
 

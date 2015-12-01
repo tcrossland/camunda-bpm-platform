@@ -13,10 +13,10 @@
 package org.camunda.bpm.engine.impl;
 
 import java.util.Map;
-import java.util.logging.Logger;
 
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.DecisionService;
 import org.camunda.bpm.engine.ExternalTaskService;
 import org.camunda.bpm.engine.FilterService;
 import org.camunda.bpm.engine.FormService;
@@ -42,7 +42,7 @@ import org.camunda.bpm.engine.impl.metrics.reporter.DbMetricsReporter;
  */
 public class ProcessEngineImpl implements ProcessEngine {
 
-  private static Logger log = Logger.getLogger(ProcessEngineImpl.class.getName());
+  private final static ProcessEngineLogger LOG = ProcessEngineLogger.INSTANCE;
 
   protected String name;
 
@@ -57,6 +57,7 @@ public class ProcessEngineImpl implements ProcessEngine {
   protected CaseService caseService;
   protected FilterService filterService;
   protected ExternalTaskService externalTaskService;
+  protected DecisionService decisionService;
 
   protected String databaseSchemaUpdate;
   protected JobExecutor jobExecutor;
@@ -84,6 +85,7 @@ public class ProcessEngineImpl implements ProcessEngine {
     this.caseService = processEngineConfiguration.getCaseService();
     this.filterService = processEngineConfiguration.getFilterService();
     this.externalTaskService = processEngineConfiguration.getExternalTaskService();
+    this.decisionService = processEngineConfiguration.getDecisionService();
 
     this.databaseSchemaUpdate = processEngineConfiguration.getDatabaseSchemaUpdate();
     this.jobExecutor = processEngineConfiguration.getJobExecutor();
@@ -96,9 +98,9 @@ public class ProcessEngineImpl implements ProcessEngine {
     executeSchemaOperations();
 
     if (name == null) {
-      log.info("default activiti ProcessEngine created");
+      LOG.processEngineCreated("default");
     } else {
-      log.info("ProcessEngine " + name + " created");
+      LOG.processEngineCreated(name);
     }
 
     ProcessEngines.registerProcessEngine(this);
@@ -190,6 +192,10 @@ public class ProcessEngineImpl implements ProcessEngine {
 
   public ExternalTaskService getExternalTaskService() {
     return externalTaskService;
+  }
+
+  public DecisionService getDecisionService() {
+    return decisionService;
   }
 
   public ProcessEngineConfigurationImpl getProcessEngineConfiguration() {

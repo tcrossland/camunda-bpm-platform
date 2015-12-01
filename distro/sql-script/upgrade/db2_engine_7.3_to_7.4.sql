@@ -34,22 +34,6 @@ create table ACT_RE_DECISION_DEF (
 alter table ACT_RE_DECISION_DEF
     add constraint ACT_UNIQ_DECISION_DEF
     unique (KEY_,VERSION_);
-    
--- case execution repetition rule --
-
-ALTER TABLE ACT_RU_CASE_EXECUTION
-  ADD REPEATABLE_ smallint check(REPEATABLE_ in (1,0));
-
-ALTER TABLE ACT_RU_CASE_EXECUTION
-  ADD REPETITION_ smallint check(REPETITION_ in (1,0));
-
--- historic case activity instance repetition rule --
-
-ALTER TABLE ACT_HI_CASEACTINST
-  ADD REPEATABLE_ smallint check(REPEATABLE_ in (1,0));
-
-ALTER TABLE ACT_HI_CASEACTINST
-  ADD REPETITION_ smallint check(REPETITION_ in (1,0));
 
 -- case sentry part source --
 
@@ -62,9 +46,12 @@ create table ACT_HI_DECINST (
     DEC_DEF_ID_ varchar(64) NOT NULL,
     DEC_DEF_KEY_ varchar(255) NOT NULL,
     DEC_DEF_NAME_ varchar(255),
-    PROC_DEF_KEY_ varchar(255),             
-    PROC_DEF_ID_ varchar(64),               
+    PROC_DEF_KEY_ varchar(255),
+    PROC_DEF_ID_ varchar(64),
     PROC_INST_ID_ varchar(64),
+    CASE_DEF_KEY_ varchar(255),
+    CASE_DEF_ID_ varchar(64),
+    CASE_INST_ID_ varchar(64),
     ACT_INST_ID_ varchar(64),
     ACT_ID_ varchar(255),
     EVAL_TIME_ timestamp not null,
@@ -109,6 +96,7 @@ create table ACT_HI_DEC_OUT (
 create index ACT_IDX_HI_DEC_INST_ID on ACT_HI_DECINST(DEC_DEF_ID_);
 create index ACT_IDX_HI_DEC_INST_KEY on ACT_HI_DECINST(DEC_DEF_KEY_);
 create index ACT_IDX_HI_DEC_INST_PI on ACT_HI_DECINST(PROC_INST_ID_);
+create index ACT_IDX_HI_DEC_INST_CI on ACT_HI_DECINST(CASE_INST_ID_);
 create index ACT_IDX_HI_DEC_INST_ACT on ACT_HI_DECINST(ACT_ID_);
 create index ACT_IDX_HI_DEC_INST_ACT_INST on ACT_HI_DECINST(ACT_INST_ID_);
 create index ACT_IDX_HI_DEC_INST_TIME on ACT_HI_DECINST(EVAL_TIME_);
@@ -156,3 +144,23 @@ create index ACT_IDX_EXT_TASK_TOPIC ON ACT_RU_EXT_TASK(TOPIC_NAME_);
 
 ALTER TABLE ACT_RE_DEPLOYMENT 
   ADD SOURCE_ varchar(255);
+
+ALTER TABLE ACT_HI_OP_LOG
+  ADD DEPLOYMENT_ID_ varchar(64);
+  
+-- job suspension state
+
+ALTER TABLE ACT_RU_JOB
+  ALTER COLUMN SUSPENSION_STATE_
+  SET DEFAULT 1;
+
+  -- relevant for jobs created in Camunda 7.0
+UPDATE ACT_RU_JOB
+  SET SUSPENSION_STATE_ = 1
+  WHERE SUSPENSION_STATE_ IS NULL;
+  
+ALTER TABLE ACT_RU_JOB
+  ALTER COLUMN SUSPENSION_STATE_
+  SET NOT NULL;
+  
+CALL SYSPROC.ADMIN_CMD('REORG TABLE ACT_RU_JOB');
