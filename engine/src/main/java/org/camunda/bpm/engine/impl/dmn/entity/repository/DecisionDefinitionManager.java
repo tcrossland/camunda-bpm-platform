@@ -57,11 +57,20 @@ public class DecisionDefinitionManager extends AbstractManager {
 
   @SuppressWarnings("unchecked")
   public List<DecisionDefinition> findDecisionDefinitionsByQueryCriteria(DecisionDefinitionQueryImpl decisionDefinitionQuery, Page page) {
+    configureDecisionDefinitionQuery(decisionDefinitionQuery);
     return getDbEntityManager().selectList("selectDecisionDefinitionsByQueryCriteria", decisionDefinitionQuery, page);
   }
 
   public long findDecisionDefinitionCountByQueryCriteria(DecisionDefinitionQueryImpl decisionDefinitionQuery) {
+    configureDecisionDefinitionQuery(decisionDefinitionQuery);
     return (Long) getDbEntityManager().selectOne("selectDecisionDefinitionCountByQueryCriteria", decisionDefinitionQuery);
+  }
+
+  public String findPreviousDecisionDefinitionIdByKeyAndVersion(String decisionDefinitionKey, Integer version) {
+    Map<String, Object> params = new HashMap<String, Object>();
+    params.put("key", decisionDefinitionKey);
+    params.put("version", version);
+    return (String) getDbEntityManager().selectOne("selectPreviousDecisionDefinitionIdByKeyAndVersion", params);
   }
 
   @SuppressWarnings("unchecked")
@@ -76,4 +85,9 @@ public class DecisionDefinitionManager extends AbstractManager {
       saveDefaultAuthorizations(authorizations);
     }
   }
+
+  protected void configureDecisionDefinitionQuery(DecisionDefinitionQueryImpl query) {
+    getAuthorizationManager().configureDecisionDefinitionQuery(query);
+  }
+
 }

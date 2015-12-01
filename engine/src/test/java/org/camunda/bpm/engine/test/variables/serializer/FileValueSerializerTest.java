@@ -26,13 +26,11 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.Scanner;
 
-import org.camunda.bpm.engine.exception.NullValueException;
-import org.camunda.bpm.engine.impl.core.variable.type.FileValueTypeImpl;
-import org.camunda.bpm.engine.impl.core.variable.value.UntypedValueImpl;
-import org.camunda.bpm.engine.impl.persistence.entity.ByteArrayEntity;
 import org.camunda.bpm.engine.impl.variable.serializer.FileValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.ValueFields;
 import org.camunda.bpm.engine.variable.Variables;
+import org.camunda.bpm.engine.variable.impl.type.FileValueTypeImpl;
+import org.camunda.bpm.engine.variable.impl.value.UntypedValueImpl;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.bpm.engine.variable.value.TypedValue;
 import org.junit.Before;
@@ -65,7 +63,7 @@ public class FileValueSerializerTest {
 
     serializer.writeValue(fileValue, valueFields);
 
-    assertThat(valueFields.getByteArrayValue().getBytes(), is(nullValue()));
+    assertThat(valueFields.getByteArrayValue(), is(nullValue()));
     assertThat(valueFields.getTextValue(), is(filename));
     assertThat(valueFields.getTextValue2(), is(nullValue()));
   }
@@ -79,7 +77,7 @@ public class FileValueSerializerTest {
 
     serializer.writeValue(fileValue, valueFields);
 
-    assertThat(valueFields.getByteArrayValue().getBytes(), is(nullValue()));
+    assertThat(valueFields.getByteArrayValue(), is(nullValue()));
     assertThat(valueFields.getTextValue(), is(filename));
     assertThat(valueFields.getTextValue2(), is(mimeType + SEPARATOR));
   }
@@ -94,7 +92,7 @@ public class FileValueSerializerTest {
 
     serializer.writeValue(fileValue, valueFields);
 
-    assertThat(new String(valueFields.getByteArrayValue().getBytes(), "UTF-8"), is("text"));
+    assertThat(new String(valueFields.getByteArrayValue(), "UTF-8"), is("text"));
     assertThat(valueFields.getTextValue(), is(filename));
     assertThat(valueFields.getTextValue2(), is(mimeType + SEPARATOR));
   }
@@ -110,7 +108,7 @@ public class FileValueSerializerTest {
 
     serializer.writeValue(fileValue, valueFields);
 
-    assertThat(new String(valueFields.getByteArrayValue().getBytes(), "UTF-8"), is("text"));
+    assertThat(new String(valueFields.getByteArrayValue(), "UTF-8"), is("text"));
     assertThat(valueFields.getTextValue(), is(filename));
     assertThat(valueFields.getTextValue2(), is(mimeType + SEPARATOR + encoding.name()));
   }
@@ -123,7 +121,7 @@ public class FileValueSerializerTest {
 
     serializer.writeValue(fileValue, valueFields);
 
-    assertThat(new String(valueFields.getByteArrayValue().getBytes(), "UTF-8"), is("text"));
+    assertThat(new String(valueFields.getByteArrayValue(), "UTF-8"), is("text"));
     assertThat(valueFields.getTextValue(), is("simpleFile.txt"));
     assertThat(valueFields.getTextValue2(), is("text/plain" + SEPARATOR));
   }
@@ -246,12 +244,12 @@ public class FileValueSerializerTest {
 
     serializer.writeValue(fileValue, valueFields);
 
-    assertThat(valueFields.getByteArrayValue().getBytes(), is(nullValue()));
+    assertThat(valueFields.getByteArrayValue(), is(nullValue()));
     assertThat(valueFields.getTextValue(), is(filename));
     assertThat(valueFields.getTextValue2(), is(SEPARATOR + encoding));
   }
 
-  @Test(expected = NullValueException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testSerializeFileValueWithoutName() {
     Variables.fileValue((String) null).file("abc".getBytes()).create();
   }
@@ -269,7 +267,7 @@ public class FileValueSerializerTest {
     private String textValue2;
     private Long longValue;
     private Double doubleValue;
-    private ByteArrayEntity byteArrayValue;
+    private byte[] bytes;
 
     @Override
     public String getName() {
@@ -317,18 +315,13 @@ public class FileValueSerializerTest {
     }
 
     @Override
-    public String getByteArrayValueId() {
-      return byteArrayValue.getId();
-    }
-
-    @Override
-    public ByteArrayEntity getByteArrayValue() {
-      return byteArrayValue;
+    public byte[] getByteArrayValue() {
+      return bytes;
     }
 
     @Override
     public void setByteArrayValue(byte[] bytes) {
-      this.byteArrayValue = new ByteArrayEntity(bytes);
+      this.bytes = bytes;
     }
 
   }

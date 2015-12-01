@@ -34,10 +34,13 @@ public abstract class CallableElementActivityBehavior extends AbstractBpmnActivi
     startInstance(execution, variables, businessKey);
   }
 
-  public void passOutputVariablesFromSubprocess(VariableScope execution, VariableScope subInstance) {
+  public void passOutputVariables(ActivityExecution execution, VariableScope subInstance) {
     // only data. no control flow available on this execution.
     VariableMap variabes = getOutputVariables(subInstance);
     execution.setVariables(variabes);
+
+    VariableMap localVariables = getOutputVariablesLocal(subInstance);
+    execution.setVariablesLocal(localVariables);
   }
 
   public void completed(ActivityExecution execution) throws Exception {
@@ -57,12 +60,16 @@ public abstract class CallableElementActivityBehavior extends AbstractBpmnActivi
     return getCallableElement().getBusinessKey(execution);
   }
 
-  protected VariableMap getInputVariables(ActivityExecution execution) {
-    return getCallableElement().getInputVariables(execution);
+  protected VariableMap getInputVariables(ActivityExecution callingExecution) {
+    return getCallableElement().getInputVariables(callingExecution);
   }
 
-  protected VariableMap getOutputVariables(VariableScope variableScope) {
-    return getCallableElement().getOutputVariables(variableScope);
+  protected VariableMap getOutputVariables(VariableScope calledElementScope) {
+    return getCallableElement().getOutputVariables(calledElementScope);
+  }
+
+  protected VariableMap getOutputVariablesLocal(VariableScope calledElementScope) {
+    return getCallableElement().getOutputVariablesLocal(calledElementScope);
   }
 
   protected Integer getVersion(ActivityExecution execution) {

@@ -31,9 +31,6 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
 
@@ -48,10 +45,11 @@ import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.apache.ibatis.transaction.managed.ManagedTransactionFactory;
 import org.camunda.bpm.dmn.engine.DmnEngine;
 import org.camunda.bpm.dmn.engine.DmnEngineConfiguration;
-import org.camunda.bpm.dmn.scriptengine.DmnScriptEngineFactory;
 import org.camunda.bpm.engine.ArtifactFactory;
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.DecisionService;
+import org.camunda.bpm.engine.ExternalTaskService;
 import org.camunda.bpm.engine.FilterService;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.HistoryService;
@@ -64,7 +62,9 @@ import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.impl.AuthorizationServiceImpl;
+import org.camunda.bpm.engine.impl.DecisionServiceImpl;
 import org.camunda.bpm.engine.impl.DefaultArtifactFactory;
+import org.camunda.bpm.engine.impl.ExternalTaskServiceImpl;
 import org.camunda.bpm.engine.impl.FilterServiceImpl;
 import org.camunda.bpm.engine.impl.FormServiceImpl;
 import org.camunda.bpm.engine.impl.HistoryServiceImpl;
@@ -148,7 +148,7 @@ import org.camunda.bpm.engine.impl.history.transformer.CmmnHistoryTransformListe
 import org.camunda.bpm.engine.impl.identity.ReadOnlyIdentityProvider;
 import org.camunda.bpm.engine.impl.identity.WritableIdentityProvider;
 import org.camunda.bpm.engine.impl.identity.db.DbIdentityServiceProvider;
-import org.camunda.bpm.engine.impl.incident.FailedJobIncidentHandler;
+import org.camunda.bpm.engine.impl.incident.DefaultIncidentHandler;
 import org.camunda.bpm.engine.impl.incident.IncidentHandler;
 import org.camunda.bpm.engine.impl.interceptor.CommandContextFactory;
 import org.camunda.bpm.engine.impl.interceptor.CommandExecutor;
@@ -191,6 +191,7 @@ import org.camunda.bpm.engine.impl.persistence.entity.CommentManager;
 import org.camunda.bpm.engine.impl.persistence.entity.DeploymentManager;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionManager;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionManager;
+import org.camunda.bpm.engine.impl.persistence.entity.ExternalTaskManager;
 import org.camunda.bpm.engine.impl.persistence.entity.FilterManager;
 import org.camunda.bpm.engine.impl.persistence.entity.HistoricActivityInstanceManager;
 import org.camunda.bpm.engine.impl.persistence.entity.HistoricCaseActivityInstanceManager;
@@ -248,6 +249,7 @@ import org.camunda.bpm.engine.impl.variable.serializer.jpa.EntityManagerSessionF
 import org.camunda.bpm.engine.impl.variable.serializer.jpa.JPAVariableSerializer;
 import org.camunda.bpm.engine.management.Metrics;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
+import org.camunda.bpm.engine.runtime.Incident;
 import org.camunda.bpm.engine.variable.Variables;
 import org.camunda.bpm.engine.variable.type.ValueType;
 
@@ -257,7 +259,7 @@ import org.camunda.bpm.engine.variable.type.ValueType;
  */
 public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfiguration {
 
-  private static Logger log = Logger.getLogger(ProcessEngineConfigurationImpl.class.getName());
+  private final static ConfigurationLogger LOG = ConfigurationLogger.CONFIG_LOGGER;
 
   public static final String DB_SCHEMA_UPDATE_CREATE = "create";
   public static final String DB_SCHEMA_UPDATE_DROP_CREATE = "drop-create";
@@ -283,6 +285,8 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected AuthorizationService authorizationService = new AuthorizationServiceImpl();
   protected CaseService caseService = new CaseServiceImpl();
   protected FilterService filterService = new FilterServiceImpl();
+  protected ExternalTaskService externalTaskService = new ExternalTaskServiceImpl();
+  protected DecisionService decisionService = new DecisionServiceImpl();
 
   // COMMAND EXECUTORS ////////////////////////////////////////////////////////
 
@@ -496,7 +500,16 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected boolean enableExpressionsInAdhocQueries = false;
   protected boolean enableExpressionsInStoredQueries = true;
 
+  /**
+   * If true, user operation log entries are only written if there is an
+   * authenticated user present in the context. If false, user operation log
+   * entries are written regardless of authentication state.
+   */
+  protected boolean restrictUserOperationLogToAuthenticatedUsers = true;
+
   protected boolean isBpmnStacktraceVerbose = false;
+
+  protected boolean forceCloseMybatisConnectionPool = true;
 
   // buildProcessEngine ///////////////////////////////////////////////////////
 
@@ -559,11 +572,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
   protected void invokePreInit() {
     for (ProcessEnginePlugin plugin : processEnginePlugins) {
-
-      log.log(Level.INFO, "PLUGIN {0} activated on process engine {1}",
-          new String[]{plugin.getClass().getSimpleName(),
-          getProcessEngineName()});
-
+      LOG.pluginActivated(plugin.getClass().getSimpleName(), getProcessEngineName());
       plugin.preInit(this);
     }
   }
@@ -595,8 +604,11 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     if (incidentHandlers == null) {
       incidentHandlers = new HashMap<String, IncidentHandler>();
 
-      FailedJobIncidentHandler failedJobIncidentHandler = new FailedJobIncidentHandler();
+      DefaultIncidentHandler failedJobIncidentHandler = new DefaultIncidentHandler(Incident.FAILED_JOB_HANDLER_TYPE);
       incidentHandlers.put(failedJobIncidentHandler.getIncidentHandlerType(), failedJobIncidentHandler);
+
+      DefaultIncidentHandler failedExternalTaskIncidentHandler = new DefaultIncidentHandler(Incident.EXTERNAL_TASK_HANDLER_TYPE);
+      incidentHandlers.put(failedExternalTaskIncidentHandler.getIncidentHandlerType(), failedExternalTaskIncidentHandler);
     }
     if(customIncidentHandlers != null) {
       for (IncidentHandler incidentHandler : customIncidentHandlers) {
@@ -697,6 +709,8 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     initService(authorizationService);
     initService(caseService);
     initService(filterService);
+    initService(externalTaskService);
+    initService(decisionService);
   }
 
   protected void initService(Object service) {
@@ -720,8 +734,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
         if ( (jdbcDriver==null) || (jdbcUrl==null) || (jdbcUsername==null) ) {
           throw new ProcessEngineException("DataSource or JDBC properties have to be specified in a process engine configuration");
         }
-
-        log.fine("initializing datasource to db: "+jdbcUrl);
 
         PooledDataSource pooledDataSource =
           new PooledDataSource(ReflectUtil.getClassLoader(), jdbcDriver, jdbcUrl, jdbcUsername, jdbcPassword );
@@ -796,10 +808,10 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
       connection = dataSource.getConnection();
       DatabaseMetaData databaseMetaData = connection.getMetaData();
       String databaseProductName = databaseMetaData.getDatabaseProductName();
-      log.fine("database product name: '" + databaseProductName + "'");
+      LOG.debugDatabaseproductName(databaseProductName);
       databaseType = databaseTypeMappings.getProperty(databaseProductName);
       ensureNotNull("couldn't deduct database type from database product name '" + databaseProductName + "'", "databaseType", databaseType);
-      log.fine("using database type: " + databaseType);
+      LOG.debugDatabaseType(databaseType);
 
     } catch (SQLException e) {
       e.printStackTrace();
@@ -854,6 +866,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
           properties.put("falseConstant", DbSqlSessionFactory.databaseSpecificFalseConstant.get(databaseType));
 
           properties.put("dbSpecificDummyTable" , DbSqlSessionFactory.databaseSpecificDummyTable.get(databaseType));
+          properties.put("dbSpecificIfNullFunction", DbSqlSessionFactory.databaseSpecificIfNull.get(databaseType));
 
           Map<String, String> constants = DbSqlSessionFactory.dbSpecificConstants.get(databaseType);
           for (Entry<String, String> entry : constants.entrySet()) {
@@ -930,6 +943,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
       addSessionFactory(new GenericManagerFactory(AuthorizationManager.class));
       addSessionFactory(new GenericManagerFactory(FilterManager.class));
       addSessionFactory(new GenericManagerFactory(MeterLogManager.class));
+      addSessionFactory(new GenericManagerFactory(ExternalTaskManager.class));
 
       addSessionFactory(new GenericManagerFactory(CaseDefinitionManager.class));
       addSessionFactory(new GenericManagerFactory(CaseExecutionManager.class));
@@ -1108,7 +1122,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected DmnDeployer getDmnDeployer() {
     DmnDeployer dmnDeployer = new DmnDeployer();
     dmnDeployer.setIdGenerator(idGenerator);
-    dmnDeployer.setTransformer(dmnEngineConfiguration.getTransformer());
+    dmnDeployer.setTransformer(((ProcessEngineDmnEngineConfiguration) dmnEngineConfiguration).getTransformer());
     return dmnDeployer;
   }
 
@@ -1116,8 +1130,16 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     return dmnEngine;
   }
 
+  public void setDmnEngine(DmnEngine dmnEngine) {
+    this.dmnEngine = dmnEngine;
+  }
+
   public DmnEngineConfiguration getDmnEngineConfiguration() {
     return dmnEngineConfiguration;
+  }
+
+  public void setDmnEngineConfiguration(DmnEngineConfiguration dmnEngineConfiguration) {
+    dmnEngineConfiguration = dmnEngineConfiguration;
   }
 
   // job executor /////////////////////////////////////////////////////////////
@@ -1201,9 +1223,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
       if(HISTORY_VARIABLE.equalsIgnoreCase(history)) {
         historyLevel = HistoryLevel.HISTORY_LEVEL_ACTIVITY;
-        log.warning("Using deprecated history level 'variable'. " +
-            "This history level is deprecated and replaced by 'activity'. " +
-            "Consider using 'ACTIVITY' instead.");
+        LOG.usingDeprecatedHistoryLevelVariable();
 
       } else {
         for (HistoryLevel historyLevel : historyLevels) {
@@ -1419,7 +1439,10 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected void initDmnEngine() {
     if (dmnEngine == null) {
       if (dmnEngineConfiguration == null) {
-        dmnEngineConfiguration = new ProcessEngineDmnEngineConfiguration(scriptingEngines, new HistoryDecisionTableListener(dmnHistoryEventProducer, historyLevel));
+        dmnEngineConfiguration = new ProcessEngineDmnEngineConfiguration(
+            scriptingEngines,
+            new HistoryDecisionTableListener(dmnHistoryEventProducer, historyLevel),
+            expressionManager);
       }
       dmnEngine = dmnEngineConfiguration.buildEngine();
     }
@@ -1427,7 +1450,6 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
       dmnEngineConfiguration = dmnEngine.getConfiguration();
     }
 
-    scriptingEngines.addScriptEngineFactory(new DmnScriptEngineFactory(dmnEngine));
   }
 
   protected void initExpressionManager() {
@@ -1762,6 +1784,22 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
   public void setFilterService(FilterService filterService) {
     this.filterService = filterService;
+  }
+
+  public ExternalTaskService getExternalTaskService() {
+    return externalTaskService;
+  }
+
+  public void setExternalTaskService(ExternalTaskService externalTaskService) {
+    this.externalTaskService = externalTaskService;
+  }
+
+  public DecisionService getDecisionService() {
+    return decisionService;
+  }
+
+  public void setDecisionService(DecisionService decisionService) {
+    this.decisionService = decisionService;
   }
 
   public Map<Class< ? >, SessionFactory> getSessionFactories() {
@@ -2710,7 +2748,9 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   }
 
   public void close() {
-    if (dataSource instanceof PooledDataSource) {
+    if (forceCloseMybatisConnectionPool
+        && dataSource instanceof PooledDataSource) {
+
       // ACT-233: connection pool of Ibatis is not properely initialized if this is not called!
       ((PooledDataSource)dataSource).forceCloseAll();
     }
@@ -2802,4 +2842,23 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   public boolean isBpmnStacktraceVerbose() {
     return this.isBpmnStacktraceVerbose;
   }
+
+  public boolean isForceCloseMybatisConnectionPool() {
+    return forceCloseMybatisConnectionPool;
+  }
+
+  public ProcessEngineConfigurationImpl setForceCloseMybatisConnectionPool(boolean forceCloseMybatisConnectionPool) {
+    this.forceCloseMybatisConnectionPool = forceCloseMybatisConnectionPool;
+    return this;
+  }
+
+  public boolean isRestrictUserOperationLogToAuthenticatedUsers() {
+    return restrictUserOperationLogToAuthenticatedUsers;
+  }
+
+  public ProcessEngineConfigurationImpl setRestrictUserOperationLogToAuthenticatedUsers(boolean restrictUserOperationLogToAuthenticatedUsers) {
+    this.restrictUserOperationLogToAuthenticatedUsers = restrictUserOperationLogToAuthenticatedUsers;
+    return this;
+  }
+
 }

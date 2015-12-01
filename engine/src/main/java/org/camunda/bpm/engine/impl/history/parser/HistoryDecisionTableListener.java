@@ -13,11 +13,13 @@
 
 package org.camunda.bpm.engine.impl.history.parser;
 
-import org.camunda.bpm.dmn.engine.DmnDecisionTable;
-import org.camunda.bpm.dmn.engine.DmnDecisionTableListener;
-import org.camunda.bpm.dmn.engine.DmnDecisionTableResult;
-import org.camunda.bpm.engine.delegate.DelegateExecution;
+import org.camunda.bpm.dmn.engine.DmnDecision;
+import org.camunda.bpm.dmn.engine.delegate.DmnDecisionTableEvaluationEvent;
+import org.camunda.bpm.dmn.engine.delegate.DmnDecisionTableEvaluationListener;
+import org.camunda.bpm.engine.impl.cmmn.entity.runtime.CaseExecutionEntity;
 import org.camunda.bpm.engine.impl.context.Context;
+import org.camunda.bpm.engine.impl.context.CoreExecutionContext;
+import org.camunda.bpm.engine.impl.core.instance.CoreExecution;
 import org.camunda.bpm.engine.impl.history.HistoryLevel;
 import org.camunda.bpm.engine.impl.history.event.HistoryEvent;
 import org.camunda.bpm.engine.impl.history.event.HistoryEventTypes;
@@ -25,7 +27,7 @@ import org.camunda.bpm.engine.impl.history.producer.DmnHistoryEventProducer;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.repository.DecisionDefinition;
 
-public class HistoryDecisionTableListener implements DmnDecisionTableListener {
+public class HistoryDecisionTableListener implements DmnDecisionTableEvaluationListener {
 
   protected DmnHistoryEventProducer eventProducer;
   protected HistoryLevel historyLevel;
@@ -35,28 +37,43 @@ public class HistoryDecisionTableListener implements DmnDecisionTableListener {
     this.historyLevel = historyLevel;
   }
 
-  public void notify(DmnDecisionTable decisionTable, DmnDecisionTableResult decisionTableResult) {
-    ExecutionEntity execution = Context.getBpmnExecutionContext().getExecution();
-
-    HistoryEvent historyEvent = createHistoryEvent(execution, decisionTable, decisionTableResult);
+  public void notify(DmnDecisionTableEvaluationEvent evaluationEvent) {
+   HistoryEvent historyEvent = createHistoryEvent(evaluationEvent);
 
     if(historyEvent != null) {
       Context.getProcessEngineConfiguration()
         .getHistoryEventHandler()
         .handleEvent(historyEvent);
     }
-
   }
 
-  public HistoryEvent createHistoryEvent(DelegateExecution execution, DmnDecisionTable decisionTable, DmnDecisionTableResult decisionTableResult) {
-    if(historyLevel.isHistoryEventProduced(HistoryEventTypes.DMN_DECISION_EVALUATE, null) && isDeployedDecisionTable(decisionTable)) {
-      return eventProducer.createDecisionEvaluatedEvt(execution, decisionTable, decisionTableResult);
+  protected HistoryEvent createHistoryEvent(DmnDecisionTableEvaluationEvent evaluationEvent) {
+    DmnDecision decisionTable = evaluationEvent.getDecisionTable();
+    if(isDeployedDecisionTable(decisionTable) && historyLevel.isHistoryEventProduced(HistoryEventTypes.DMN_DECISION_EVALUATE, decisionTable)) {
+
+      CoreExecutionContext<? extends CoreExecution> executionContext = Context.getCoreExecutionContext();
+      if (executionContext != null) {
+        CoreExecution coreExecution = executionContext.getExecution();
+
+        if (coreExecution instanceof ExecutionEntity) {
+          ExecutionEntity execution = (ExecutionEntity) coreExecution;
+          return eventProducer.createDecisionEvaluatedEvt(execution, evaluationEvent);
+        }
+        else if (coreExecution instanceof CaseExecutionEntity) {
+          CaseExecutionEntity caseExecution = (CaseExecutionEntity) coreExecution;
+          return eventProducer.createDecisionEvaluatedEvt(caseExecution, evaluationEvent);
+        }
+
+      }
+
+      return eventProducer.createDecisionEvaluatedEvt(evaluationEvent);
+
     } else {
       return null;
     }
   }
 
-  protected boolean isDeployedDecisionTable(DmnDecisionTable decisionTable) {
+  protected boolean isDeployedDecisionTable(DmnDecision decisionTable) {
     if(decisionTable instanceof DecisionDefinition) {
       // ignore decisions that are evaluated in a script task
       return ((DecisionDefinition) decisionTable).getId() != null;

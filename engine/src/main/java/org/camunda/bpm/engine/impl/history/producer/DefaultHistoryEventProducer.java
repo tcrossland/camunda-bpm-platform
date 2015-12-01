@@ -17,7 +17,6 @@ import static org.camunda.bpm.engine.impl.util.JobExceptionUtil.getJobExceptionS
 import static org.camunda.bpm.engine.impl.util.StringUtil.toByteArray;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import org.camunda.bpm.engine.delegate.DelegateExecution;
@@ -39,7 +38,6 @@ import org.camunda.bpm.engine.impl.history.event.HistoryEvent;
 import org.camunda.bpm.engine.impl.history.event.HistoryEventType;
 import org.camunda.bpm.engine.impl.history.event.HistoryEventTypes;
 import org.camunda.bpm.engine.impl.history.event.UserOperationLogEntryEventEntity;
-import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.oplog.UserOperationLogContext;
 import org.camunda.bpm.engine.impl.oplog.UserOperationLogContextEntry;
 import org.camunda.bpm.engine.impl.persistence.entity.ByteArrayEntity;
@@ -229,14 +227,14 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
     evt.setDoubleValue(variableInstance.getDoubleValue());
     evt.setLongValue(variableInstance.getLongValue());
     if (variableInstance.getByteArrayValueId() != null) {
-      ByteArrayEntity byteArrayValue = variableInstance.getByteArrayValue();
-      evt.setByteValue(byteArrayValue.getBytes());
+      evt.setByteValue(variableInstance.getByteArrayValue());
     }
   }
 
   protected void initUserOperationLogEvent(UserOperationLogEntryEventEntity evt, UserOperationLogContext context,
       UserOperationLogContextEntry contextEntry, PropertyChange propertyChange) {
     // init properties
+    evt.setDeploymentId(contextEntry.getDeploymentId());
     evt.setEntityType(contextEntry.getEntityType());
     evt.setOperationType(contextEntry.getOperationType());
     evt.setOperationId(context.getOperationId());
@@ -561,13 +559,6 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
   public List<HistoryEvent> createUserOperationLogEvents(UserOperationLogContext context) {
     List<HistoryEvent> historyEvents = new ArrayList<HistoryEvent>();
 
-    String userId = null;
-    CommandContext commandContext = Context.getCommandContext();
-    if (commandContext != null) {
-      userId = commandContext.getAuthenticatedUserId();
-    }
-    context.setUserId(userId);
-
     String operationId = Context.getProcessEngineConfiguration().getIdGenerator().getNextId();
     context.setOperationId(operationId);
 
@@ -693,7 +684,7 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
   }
 
   protected void initHistoricJobLogEvent(HistoricJobLogEventEntity evt, Job job, HistoryEventType eventType) {
-    evt.setTimestamp(new Date());
+    evt.setTimestamp(ClockUtil.getCurrentTime());
 
     JobEntity jobEntity = (JobEntity) job;
     evt.setJobId(jobEntity.getId());

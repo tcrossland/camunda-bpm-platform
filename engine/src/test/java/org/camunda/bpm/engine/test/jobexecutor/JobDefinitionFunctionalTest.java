@@ -15,6 +15,7 @@ package org.camunda.bpm.engine.test.jobexecutor;
 import java.util.List;
 
 import org.camunda.bpm.engine.OptimisticLockingException;
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.cmd.AcquireJobsCmd;
 import org.camunda.bpm.engine.impl.cmd.ExecuteJobsCmd;
 import org.camunda.bpm.engine.impl.cmd.SetJobDefinitionPriorityCmd;
@@ -23,7 +24,6 @@ import org.camunda.bpm.engine.impl.cmd.SuspendJobDefinitionCmd;
 import org.camunda.bpm.engine.impl.jobexecutor.AcquiredJobs;
 import org.camunda.bpm.engine.impl.jobexecutor.JobExecutor;
 import org.camunda.bpm.engine.impl.test.PluggableProcessEngineTestCase;
-import org.camunda.bpm.engine.impl.test.TestHelper;
 import org.camunda.bpm.engine.management.JobDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.runtime.Job;
@@ -31,12 +31,15 @@ import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.engine.test.concurrency.ControllableThread;
 import org.camunda.bpm.engine.test.concurrency.ControlledCommand;
+import org.slf4j.Logger;
 
 /**
  * @author Daniel Meyer
  *
  */
 public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase {
+
+private static Logger LOG = ProcessEngineLogger.TEST_LOGGER.getLogger();
 
   @Deployment(resources={"org/camunda/bpm/engine/test/jobexecutor/simpleAsyncProcess.bpmn20.xml"})
   public void testCreateJobInstanceSuspended() {
@@ -50,9 +53,6 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
     // then the new job instance is created as suspended:
     assertNotNull(managementService.createJobQuery().suspended().singleResult());
     assertNull(managementService.createJobQuery().active().singleResult());
-
-    // clean up log
-    TestHelper.clearOpLog(processEngineConfiguration);
   }
 
   @Deployment(resources={"org/camunda/bpm/engine/test/jobexecutor/simpleAsyncProcess.bpmn20.xml"})
@@ -89,9 +89,6 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
     // then the new job executor will not acquire the job:
     acquiredJobs = acquireJobs();
     assertEquals(1, acquiredJobs.size());
-
-    // clean up log
-    TestHelper.clearOpLog(processEngineConfiguration);
   }
 
   @Deployment
@@ -123,9 +120,6 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
     waitForJobExecutorToProcessAllJobs(5000);
 
     assertEquals(0, runtimeService.createProcessInstanceQuery().count());
-
-    // clean up log
-    TestHelper.clearOpLog(processEngineConfiguration);
   }
 
 
@@ -170,9 +164,6 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
     // then there are no optimistic locking exceptions
     assertNull(jobSuspensionThread.exception);
     assertNull(acquisitionThread.exception);
-
-    // clean up log
-    TestHelper.clearOpLog(processEngineConfiguration);
   }
 
   @Deployment(resources={"org/camunda/bpm/engine/test/jobexecutor/simpleAsyncProcess.bpmn20.xml"})
@@ -212,9 +203,6 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
     // then there are no optimistic locking exceptions
     assertNull(jobSuspensionThread.exception);
     assertNull(executionthread.exception);
-
-    // clean up log
-    TestHelper.clearOpLog(processEngineConfiguration);
   }
 
   @Deployment(resources={"org/camunda/bpm/engine/test/jobexecutor/JobDefinitionFunctionalTest.testRunningInstance.bpmn"})
@@ -342,7 +330,7 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
       } catch (OptimisticLockingException e) {
         this.exception = e;
       }
-      log.fine(getName()+" ends");
+      LOG.debug(getName()+" ends");
     }
   }
 
@@ -367,7 +355,7 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
       } catch (OptimisticLockingException e) {
         this.exception = e;
       }
-      log.fine(getName()+" ends");
+      LOG.debug(getName()+" ends");
     }
   }
 
@@ -392,7 +380,7 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
       } catch (OptimisticLockingException e) {
         this.exception = e;
       }
-      log.fine(getName()+" ends");
+      LOG.debug(getName()+" ends");
     }
   }
 
@@ -417,7 +405,7 @@ public class JobDefinitionFunctionalTest extends PluggableProcessEngineTestCase 
       } catch (OptimisticLockingException e) {
         this.exception = e;
       }
-      log.fine(getName()+" ends");
+      LOG.debug(getName()+" ends");
     }
   }
 

@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.engine.BadUserRequestException;
@@ -29,6 +28,7 @@ import org.camunda.bpm.engine.IdentityService;
 import org.camunda.bpm.engine.OptimisticLockingException;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.TaskAlreadyClaimedException;
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.cfg.TransactionContext;
 import org.camunda.bpm.engine.impl.cfg.TransactionContextFactory;
@@ -55,6 +55,7 @@ import org.camunda.bpm.engine.impl.persistence.entity.DeploymentManager;
 import org.camunda.bpm.engine.impl.persistence.entity.EventSubscriptionManager;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.ExecutionManager;
+import org.camunda.bpm.engine.impl.persistence.entity.ExternalTaskManager;
 import org.camunda.bpm.engine.impl.persistence.entity.FilterManager;
 import org.camunda.bpm.engine.impl.persistence.entity.HistoricActivityInstanceManager;
 import org.camunda.bpm.engine.impl.persistence.entity.HistoricCaseActivityInstanceManager;
@@ -89,9 +90,10 @@ import org.camunda.bpm.engine.impl.pvm.runtime.AtomicOperation;
  */
 public class CommandContext {
 
-  private static Logger log = Logger.getLogger(CommandContext.class.getName());
+  private final static ContextLogger LOG = ProcessEngineLogger.CONTEXT_LOGGER;
 
   protected boolean authorizationCheckEnabled = true;
+  protected boolean userOperationLogEnabled = true;
 
   protected TransactionContext transactionContext;
   protected Map<Class< ? >, SessionFactory> sessionFactories;
@@ -140,7 +142,7 @@ public class CommandContext {
       return;
     }
 
-    ProcessApplicationReference targetProcessApplication = getTargetProcessApplication((ExecutionEntity) nextInvocation.execution);
+    ProcessApplicationReference targetProcessApplication = getTargetProcessApplication(nextInvocation.execution);
     if(requiresContextSwitch(targetProcessApplication)) {
 
       Context.executeWithinProcessApplication(new Callable<Void>() {
@@ -201,9 +203,8 @@ public class CommandContext {
     } else {
       try {
         Context.setExecutionContext(execution);
-        if (log.isLoggable(Level.FINEST)) {
-          log.finest("AtomicOperation: " + executionOperation + " on " + this);
-        }
+        LOG.debugExecutingAtomicOperation(executionOperation, execution);
+
         executionOperation.execute(execution);
       } finally {
         Context.removeExecutionContext();
@@ -260,13 +261,13 @@ public class CommandContext {
 
             Level loggingLevel = Level.SEVERE;
             if (shouldLogInfo(commandInvocationContext.getThrowable())) {
-              loggingLevel = Level.INFO; // reduce log level, because this is not really a technical exception
+              LOG.infoException(commandInvocationContext.getThrowable());
             }
             else if (shouldLogFine(commandInvocationContext.getThrowable())) {
-              loggingLevel = Level.FINE;
+              LOG.debugException(commandInvocationContext.getThrowable());
             }
-            if (log.isLoggable(loggingLevel)) {
-              log.log(loggingLevel, "Error while closing command context", commandInvocationContext.getThrowable());
+            else {
+              LOG.errorException(commandInvocationContext.getThrowable());
             }
             transactionContext.rollback();
           }
@@ -302,8 +303,9 @@ public class CommandContext {
     for (CommandContextListener listener : commandContextListeners) {
       try {
         listener.onCommandFailed(this, t);
-      } catch(Throwable ex) {
-        log.log(Level.SEVERE, "Exception while invoking onCommandFailed()", t);
+      }
+      catch(Throwable ex) {
+        LOG.exceptionWhileInvokingOnCommandFailed(t);
       }
     }
   }
@@ -512,6 +514,12 @@ public class CommandContext {
     return getSession(FilterManager.class);
   }
 
+  // External Tasks ////////////////////////////////////////////////////////////
+
+  public ExternalTaskManager getExternalTaskManager() {
+    return getSession(ExternalTaskManager.class);
+  }
+
   // getters and setters //////////////////////////////////////////////////////
 
   public void registerCommandContextListener(CommandContextListener commandContextListener) {
@@ -588,5 +596,21 @@ public class CommandContext {
 
   public void setAuthorizationCheckEnabled(boolean authorizationCheckEnabled) {
     this.authorizationCheckEnabled = authorizationCheckEnabled;
+  }
+
+  public void enableUserOperationLog() {
+    userOperationLogEnabled = true;
+  }
+
+  public void disableUserOperationLog() {
+    userOperationLogEnabled = false;
+  }
+
+  public boolean isUserOperationLogEnabled() {
+    return userOperationLogEnabled;
+  }
+
+  public void setLogUserOperationEnabled(boolean userOperationLogEnabled) {
+    this.userOperationLogEnabled = userOperationLogEnabled;
   }
 }

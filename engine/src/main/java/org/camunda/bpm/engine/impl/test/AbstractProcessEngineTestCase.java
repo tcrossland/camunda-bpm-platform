@@ -14,16 +14,15 @@
 package org.camunda.bpm.engine.impl.test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Callable;
-import java.util.logging.Level;
-
+import org.apache.ibatis.logging.LogFactory;
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.DecisionService;
+import org.camunda.bpm.engine.ExternalTaskService;
 import org.camunda.bpm.engine.FilterService;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.HistoryService;
@@ -36,24 +35,15 @@ import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.impl.ProcessEngineImpl;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
-import org.camunda.bpm.engine.impl.cmmn.entity.repository.CaseDefinitionEntity;
-import org.camunda.bpm.engine.impl.db.PersistenceSession;
-import org.camunda.bpm.engine.impl.interceptor.Command;
-import org.camunda.bpm.engine.impl.interceptor.CommandContext;
-import org.camunda.bpm.engine.impl.interceptor.CommandExecutor;
 import org.camunda.bpm.engine.impl.jobexecutor.JobExecutor;
-import org.camunda.bpm.engine.impl.persistence.deploy.DeploymentCache;
-import org.camunda.bpm.engine.impl.persistence.entity.ProcessDefinitionEntity;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
-import org.camunda.bpm.engine.impl.util.LogUtil.ThreadLogMode;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
 import org.camunda.bpm.engine.runtime.ActivityInstance;
 import org.camunda.bpm.engine.runtime.CaseInstance;
 import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
-import org.camunda.bpm.model.cmmn.CmmnModelInstance;
-import org.junit.Assert;
+import org.slf4j.Logger;
 
 import junit.framework.AssertionFailedError;
 
@@ -63,14 +53,14 @@ import junit.framework.AssertionFailedError;
  */
 public abstract class AbstractProcessEngineTestCase extends PvmTestCase {
 
+  private final static Logger LOG = TestLogger.TEST_LOGGER.getLogger();
+
   static {
-    // this ensures that mybatis uses the jdk logging
-//    LogFactory.useJdkLogging();
-    // with an upgrade of mybatis, this might have to become org.mybatis.generator.logging.LogFactory.forceJavaLogging();
+    // this ensures that mybatis uses slf4j logging
+    LogFactory.useSlf4jLogging();
   }
 
   protected ProcessEngine processEngine;
-  protected ThreadLogMode threadRenderingMode = DEFAULT_THREAD_LOG_MODE;
 
   protected String deploymentId;
   protected Throwable exception;
@@ -86,6 +76,8 @@ public abstract class AbstractProcessEngineTestCase extends PvmTestCase {
   protected AuthorizationService authorizationService;
   protected CaseService caseService;
   protected FilterService filterService;
+  protected ExternalTaskService externalTaskService;
+  protected DecisionService decisionService;
 
   protected abstract void initializeProcessEngine();
 
@@ -100,33 +92,33 @@ public abstract class AbstractProcessEngineTestCase extends PvmTestCase {
       initializeServices();
     }
 
-    log.severe(EMPTY_LINE);
-
     try {
 
       deploymentId = TestHelper.annotationDeploymentSetUp(processEngine, getClass(), getName());
 
       super.runBare();
 
-    }  catch (AssertionFailedError e) {
-      log.severe(EMPTY_LINE);
-      log.log(Level.SEVERE, "ASSERTION FAILED: "+e, e);
+    }
+    catch (AssertionFailedError e) {
+      LOG.error("ASSERTION FAILED: " + e, e);
       exception = e;
       throw e;
 
-    } catch (Throwable e) {
-      log.severe(EMPTY_LINE);
-      log.log(Level.SEVERE, "EXCEPTION: "+e, e);
+    }
+    catch (Throwable e) {
+      LOG.error("EXCEPTION: " + e, e);
       exception = e;
       throw e;
 
-    } finally {
+    }
+    finally {
       TestHelper.annotationDeploymentTearDown(processEngine, deploymentId, getClass(), getName());
       identityService.clearAuthentication();
       TestHelper.assertAndEnsureCleanDbAndCache(processEngine);
       ClockUtil.reset();
 
-      // Can't do this in the teardown, as the teardown will be called as part of the super.runBare
+      // Can't do this in the teardown, as the teardown will be called as part
+      // of the super.runBare
       closeDownProcessEngine();
       clearServiceReferences();
     }
@@ -144,6 +136,8 @@ public abstract class AbstractProcessEngineTestCase extends PvmTestCase {
     authorizationService = processEngine.getAuthorizationService();
     caseService = processEngine.getCaseService();
     filterService = processEngine.getFilterService();
+    externalTaskService = processEngine.getExternalTaskService();
+    decisionService = processEngine.getDecisionService();
   }
 
   protected void clearServiceReferences() {
@@ -158,6 +152,8 @@ public abstract class AbstractProcessEngineTestCase extends PvmTestCase {
     authorizationService = null;
     caseService = null;
     filterService = null;
+    externalTaskService = null;
+    decisionService = null;
   }
 
   public void assertProcessEnded(final String processInstanceId) {

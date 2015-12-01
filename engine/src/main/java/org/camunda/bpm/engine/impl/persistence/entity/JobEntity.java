@@ -22,14 +22,12 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.db.DbEntity;
+import org.camunda.bpm.engine.impl.db.EnginePersistenceLogger;
 import org.camunda.bpm.engine.impl.db.HasDbRevision;
-import org.camunda.bpm.engine.impl.incident.FailedJobIncidentHandler;
 import org.camunda.bpm.engine.impl.incident.IncidentHandler;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.jobexecutor.DefaultJobPriorityProvider;
@@ -50,7 +48,7 @@ import org.camunda.bpm.engine.runtime.Job;
  */
 public abstract class JobEntity implements Serializable, Job, DbEntity, HasDbRevision {
 
-  private final static Logger LOG = Logger.getLogger(JobEntity.class.getName());
+  private final static EnginePersistenceLogger LOG = ProcessEngineLogger.PERSISTENCE_LOGGER;
 
   public static final boolean DEFAULT_EXCLUSIVE = true;
   public static final int DEFAULT_RETRIES = 3;
@@ -132,9 +130,7 @@ public abstract class JobEntity implements Serializable, Job, DbEntity, HasDbRev
   }
 
   protected void postExecute(CommandContext commandContext) {
-    if (LOG.isLoggable(Level.FINE)) {
-      LOG.fine("Job " + getId() + " executed. Deleting job.");
-    }
+    LOG.debugJobExecuted(this);
     delete(true);
     commandContext.getHistoricJobLogManager().fireJobSuccessfulEvent(this);
   }
@@ -284,7 +280,7 @@ public abstract class JobEntity implements Serializable, Job, DbEntity, HasDbRev
     if (processEngineConfiguration
         .isCreateIncidentOnFailedJobEnabled()) {
 
-      String incidentHandlerType = FailedJobIncidentHandler.INCIDENT_HANDLER_TYPE;
+      String incidentHandlerType = Incident.FAILED_JOB_HANDLER_TYPE;
 
       // make sure job has an ID set:
       if(id == null) {
@@ -316,7 +312,7 @@ public abstract class JobEntity implements Serializable, Job, DbEntity, HasDbRev
   protected void removeFailedJobIncident(boolean incidentResolved) {
     IncidentHandler handler = Context
         .getProcessEngineConfiguration()
-        .getIncidentHandler(FailedJobIncidentHandler.INCIDENT_HANDLER_TYPE);
+        .getIncidentHandler(Incident.FAILED_JOB_HANDLER_TYPE);
 
     if (incidentResolved) {
       handler.resolveIncident(getProcessDefinitionId(), null, executionId, id);

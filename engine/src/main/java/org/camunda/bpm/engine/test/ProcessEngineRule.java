@@ -17,6 +17,8 @@ import java.util.Date;
 
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
+import org.camunda.bpm.engine.DecisionService;
+import org.camunda.bpm.engine.ExternalTaskService;
 import org.camunda.bpm.engine.FilterService;
 import org.camunda.bpm.engine.FormService;
 import org.camunda.bpm.engine.HistoryService;
@@ -41,10 +43,10 @@ import org.junit.runner.Description;
  *
  * <pre>
  * public class YourTest {
- * 
+ *
  *   &#64;Rule
  *   public ProcessEngineRule processEngineRule = new ProcessEngineRule();
- * 
+ *
  *   ...
  * }
  * </pre>
@@ -96,6 +98,8 @@ public class ProcessEngineRule extends TestWatcher implements ProcessEngineServi
   protected FilterService filterService;
   protected AuthorizationService authorizationService;
   protected CaseService caseService;
+  protected ExternalTaskService externalTaskService;
+  protected DecisionService decisionService;
 
   public ProcessEngineRule() {
     this(false);
@@ -158,6 +162,8 @@ public class ProcessEngineRule extends TestWatcher implements ProcessEngineServi
     authorizationService = processEngine.getAuthorizationService();
     caseService = processEngine.getCaseService();
     filterService = processEngine.getFilterService();
+    externalTaskService = processEngine.getExternalTaskService();
+    decisionService = processEngine.getDecisionService();
   }
 
   protected void clearServiceReferences() {
@@ -171,6 +177,8 @@ public class ProcessEngineRule extends TestWatcher implements ProcessEngineServi
     authorizationService = null;
     caseService = null;
     filterService = null;
+    externalTaskService = null;
+    decisionService = null;
   }
 
   @Override
@@ -302,6 +310,24 @@ public class ProcessEngineRule extends TestWatcher implements ProcessEngineServi
 
   public void setFilterService(FilterService filterService) {
     this.filterService = filterService;
+  }
+
+  @Override
+  public ExternalTaskService getExternalTaskService() {
+    return externalTaskService;
+  }
+
+  public void setExternalTaskService(ExternalTaskService externalTaskService) {
+    this.externalTaskService = externalTaskService;
+  }
+
+  @Override
+  public DecisionService getDecisionService() {
+    return decisionService;
+  }
+
+  public void setDecisionService(DecisionService decisionService) {
+    this.decisionService = decisionService;
   }
 
 }

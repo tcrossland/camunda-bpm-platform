@@ -22,16 +22,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.logging.Logger;
 
+import org.camunda.bpm.engine.HistoryService;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngineConfiguration;
 import org.camunda.bpm.engine.ProcessEngineException;
-import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.history.UserOperationLogEntry;
 import org.camunda.bpm.engine.impl.ProcessEngineImpl;
+import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.SchemaOperationsProcessEngineBuild;
-import org.camunda.bpm.engine.impl.UserOperationLogQueryImpl;
 import org.camunda.bpm.engine.impl.bpmn.deployer.BpmnDeployer;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.cmmn.deployer.CmmnDeployer;
@@ -39,6 +38,7 @@ import org.camunda.bpm.engine.impl.cmmn.entity.repository.CaseDefinitionEntity;
 import org.camunda.bpm.engine.impl.db.PersistenceSession;
 import org.camunda.bpm.engine.impl.db.entitymanager.DbEntityManager;
 import org.camunda.bpm.engine.impl.dmn.deployer.DmnDeployer;
+import org.camunda.bpm.engine.impl.history.HistoryLevel;
 import org.camunda.bpm.engine.impl.interceptor.Command;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.jobexecutor.JobExecutor;
@@ -52,6 +52,7 @@ import org.camunda.bpm.engine.test.Deployment;
 import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.cmmn.CmmnModelInstance;
 import org.junit.Assert;
+import org.slf4j.Logger;
 
 
 /**
@@ -59,7 +60,7 @@ import org.junit.Assert;
  */
 public abstract class TestHelper {
 
-  private static Logger log = Logger.getLogger(TestHelper.class.getName());
+  private static Logger LOG = ProcessEngineLogger.TEST_LOGGER.getLogger();
 
   public static final String EMPTY_LINE = "                                                                                           ";
 
@@ -88,6 +89,8 @@ public abstract class TestHelper {
   public static String annotationDeploymentSetUp(ProcessEngine processEngine, Class<?> testClass, String methodName, Deployment deploymentAnnotation) {
     String deploymentId = null;
     Method method = null;
+    boolean onMethod = true;
+
     try {
       method = testClass.getDeclaredMethod(methodName, (Class<?>[])null);
     } catch (Exception e) {
@@ -100,12 +103,17 @@ public abstract class TestHelper {
     if (deploymentAnnotation == null) {
       deploymentAnnotation = method.getAnnotation(Deployment.class);
     }
+    // if not found on method, try on class level
+    if (deploymentAnnotation == null) {
+      onMethod = false;
+      deploymentAnnotation = testClass.getAnnotation(Deployment.class);
+    }
 
     if (deploymentAnnotation != null) {
-      log.fine("annotation @Deployment creates deployment for "+ClassNameUtil.getClassNameWithoutPackage(testClass)+"."+methodName);
+      LOG.debug("annotation @Deployment creates deployment for {}.{}", ClassNameUtil.getClassNameWithoutPackage(testClass), methodName);
       String[] resources = deploymentAnnotation.resources();
       if (resources.length == 0 && method != null) {
-        String name = method.getName();
+        String name = onMethod ? method.getName() : null;
         String resource = getBpmnProcessDefinitionResource(testClass, name);
         resources = new String[]{resource};
       }
@@ -129,7 +137,7 @@ public abstract class TestHelper {
   }
 
   public static void annotationDeploymentTearDown(ProcessEngine processEngine, String deploymentId, Class<?> testClass, String methodName) {
-    log.fine("annotation @Deployment deletes deployment for "+ClassNameUtil.getClassNameWithoutPackage(testClass)+"."+methodName);
+    LOG.debug("annotation @Deployment deletes deployment for {}.{}", ClassNameUtil.getClassNameWithoutPackage(testClass), methodName);
     if(deploymentId != null) {
       processEngine.getRepositoryService().deleteDeployment(deploymentId, true);
     }
@@ -144,7 +152,7 @@ public abstract class TestHelper {
    */
   public static String getBpmnProcessDefinitionResource(Class< ? > type, String name) {
     for (String suffix : RESOURCE_SUFFIXES) {
-      String resource = type.getName().replace('.', '/') + "." + name + "." + suffix;
+      String resource = createResourceName(type, name, suffix);
       InputStream inputStream = ReflectUtil.getResourceAsStream(resource);
       if (inputStream == null) {
         continue;
@@ -152,7 +160,15 @@ public abstract class TestHelper {
         return resource;
       }
     }
-    return type.getName().replace('.', '/') + "." + name + "." + BpmnDeployer.BPMN_RESOURCE_SUFFIXES[0];
+    return createResourceName(type, name, BpmnDeployer.BPMN_RESOURCE_SUFFIXES[0]);
+  }
+
+  private static String createResourceName(Class< ? > type, String name, String suffix) {
+    StringBuffer r = new StringBuffer(type.getName().replace('.', '/'));
+    if (name != null) {
+      r.append("." + name);
+    }
+    return r.append("." + suffix).toString();
   }
 
   public static void assertAndEnsureCleanDbAndCache(ProcessEngine processEngine) {
@@ -223,8 +239,8 @@ public abstract class TestHelper {
 
     if (outputMessage.length() > 0) {
       outputMessage.insert(0, "Deployment cache not clean:\n");
-      log.severe(EMPTY_LINE);
-      log.severe(outputMessage.toString());
+      LOG.error(outputMessage.toString());
+
       if (fail) {
         Assert.fail(outputMessage.toString());
       }
@@ -232,7 +248,7 @@ public abstract class TestHelper {
       return outputMessage.toString();
     }
     else {
-      log.info("Deployment cache was clean");
+      LOG.debug("Deployment cache was clean");
       return null;
     }
   }
@@ -263,7 +279,11 @@ public abstract class TestHelper {
     ProcessEngineConfigurationImpl processEngineConfiguration = ((ProcessEngineImpl) processEngine).getProcessEngineConfiguration();
     String databaseTablePrefix = processEngineConfiguration.getDatabaseTablePrefix().trim();
 
-    log.fine("verifying that db is clean after test");
+    // clear user operation log in case some operations are
+    // executed with an authenticated user
+    clearUserOperationLog(processEngineConfiguration);
+
+    LOG.debug("verifying that db is clean after test");
     Map<String, Long> tableCounts = processEngine.getManagementService().getTableCount();
 
     StringBuilder outputMessage = new StringBuilder();
@@ -279,12 +299,11 @@ public abstract class TestHelper {
 
     if (outputMessage.length() > 0) {
       outputMessage.insert(0, "DB NOT CLEAN: \n");
-      log.severe(EMPTY_LINE);
-      log.severe(outputMessage.toString());
+      LOG.error(outputMessage.toString());
 
       /** skip drop and recreate if a table prefix is used */
       if (databaseTablePrefix.isEmpty()) {
-        log.info("Dropping and recreating database");
+        LOG.error("Dropping and recreating database");
 
         processEngineConfiguration
           .getCommandExecutorTxRequired()
@@ -299,7 +318,7 @@ public abstract class TestHelper {
           });
       }
       else {
-        log.info("Skipping recreating of database as a table prefix is used");
+        LOG.info("Skipping recreating of database as a table prefix is used");
       }
 
       if (fail) {
@@ -310,7 +329,7 @@ public abstract class TestHelper {
       }
 
     } else {
-      log.info("Database was clean");
+      LOG.debug("Database was clean");
     }
     return null;
   }
@@ -369,11 +388,11 @@ public abstract class TestHelper {
   public static ProcessEngine getProcessEngine(String configurationResource) {
     ProcessEngine processEngine = processEngines.get(configurationResource);
     if (processEngine==null) {
-      log.fine("==== BUILDING PROCESS ENGINE ========================================================================");
+      LOG.debug("==== BUILDING PROCESS ENGINE ========================================================================");
       processEngine = ProcessEngineConfiguration
         .createProcessEngineConfigurationFromResource(configurationResource)
         .buildProcessEngine();
-      log.fine("==== PROCESS ENGINE CREATED =========================================================================");
+      LOG.debug("==== PROCESS ENGINE CREATED =========================================================================");
       processEngines.put(configurationResource, processEngine);
     }
     return processEngine;
@@ -440,28 +459,14 @@ public abstract class TestHelper {
       });
   }
 
-  /**
-   * Required when user operations are logged that are not directly associated with a single deployment
-   * (e.g. runtimeService.suspendProcessDefinitionByKey(..) with cascade to process instances)
-   * and therefore cannot be cleaned up automatically during undeployment.
-   */
-  public static void clearOpLog(ProcessEngineConfigurationImpl processEngineConfiguration) {
-    processEngineConfiguration.getCommandExecutorTxRequired()
-      .execute(new Command<Void>() {
-
-        public Void execute(CommandContext commandContext) {
-          List<UserOperationLogEntry> logEntries =
-              commandContext.getOperationLogManager()
-                .findOperationLogEntriesByQueryCriteria(new UserOperationLogQueryImpl(), null);
-
-          for (UserOperationLogEntry entry : logEntries) {
-            commandContext.getOperationLogManager().deleteOperationLogEntryById(entry.getId());
-          }
-
-          return null;
-        }
-
-      });
+  public static void clearUserOperationLog(ProcessEngineConfigurationImpl processEngineConfiguration) {
+    if (processEngineConfiguration.getHistoryLevel().equals(HistoryLevel.HISTORY_LEVEL_FULL)) {
+      HistoryService historyService = processEngineConfiguration.getHistoryService();
+      List<UserOperationLogEntry> logs = historyService.createUserOperationLogQuery().list();
+      for (UserOperationLogEntry log : logs) {
+        historyService.deleteUserOperationLogEntry(log.getId());
+      }
+    }
   }
 
 }

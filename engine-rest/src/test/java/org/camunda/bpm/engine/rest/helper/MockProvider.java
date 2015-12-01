@@ -12,8 +12,8 @@
  */
 package org.camunda.bpm.engine.rest.helper;
 
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,12 +30,15 @@ import java.util.Map;
 import java.util.Set;
 
 import org.camunda.bpm.application.ProcessApplicationInfo;
+import org.camunda.bpm.dmn.engine.DmnDecisionTableResult;
 import org.camunda.bpm.engine.EntityTypes;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.authorization.Authorization;
 import org.camunda.bpm.engine.authorization.Permission;
 import org.camunda.bpm.engine.authorization.Permissions;
 import org.camunda.bpm.engine.exception.NotValidException;
+import org.camunda.bpm.engine.externaltask.ExternalTask;
+import org.camunda.bpm.engine.externaltask.LockedExternalTask;
 import org.camunda.bpm.engine.filter.Filter;
 import org.camunda.bpm.engine.filter.FilterQuery;
 import org.camunda.bpm.engine.form.FormField;
@@ -147,6 +150,7 @@ public abstract class MockProvider {
   // form data
   public static final String EXAMPLE_FORM_KEY = "aFormKey";
   public static final String EXAMPLE_DEPLOYMENT_ID = "aDeploymentId";
+  public static final String EXAMPLE_RE_DEPLOYMENT_ID = "aReDeploymentId";
 
   // form property data
   public static final String EXAMPLE_FORM_PROPERTY_ID = "aFormPropertyId";
@@ -227,6 +231,7 @@ public abstract class MockProvider {
 
   public static final String EXAMPLE_ACTIVITY_ID = "anActivity";
   public static final String ANOTHER_EXAMPLE_ACTIVITY_ID = "anotherActivity";
+  public static final String EXAMPLE_ACTIVITY_INSTANCE_ID = "anActivityInstanceId";
   public static final String EXAMPLE_ACTIVITY_NAME = "anActivityName";
   public static final String EXAMPLE_ACTIVITY_TYPE = "anActivityType";
   public static final String EXAMPLE_PROCESS_DEFINITION_DELAYED_EXECUTION = "2013-04-23T13:42:43";
@@ -235,6 +240,7 @@ public abstract class MockProvider {
   public static final String NON_EXISTING_DEPLOYMENT_ID = "aNonExistingDeploymentId";
   public static final String EXAMPLE_DEPLOYMENT_NAME = "aName";
   public static final String EXAMPLE_DEPLOYMENT_NAME_LIKE = "aNameLike";
+  public static final String EXAMPLE_DEPLOYMENT_SOURCE = "aDeploymentSource";
   public static final String EXAMPLE_DEPLOYMENT_TIME = "2013-01-23T13:59:43";
   public static final String EXAMPLE_DEPLOYMENT_TIME_BEFORE = "2013-01-03T13:59:43";
   public static final String EXAMPLE_DEPLOYMENT_TIME_AFTER = "2013-03-23T13:59:43";
@@ -244,6 +250,83 @@ public abstract class MockProvider {
   public static final String EXAMPLE_DEPLOYMENT_RESOURCE_ID = "aDeploymentResourceId";
   public static final String NON_EXISTING_DEPLOYMENT_RESOURCE_ID = "aNonExistingDeploymentResourceId";
   public static final String EXAMPLE_DEPLOYMENT_RESOURCE_NAME = "aDeploymentResourceName";
+
+  public static final String EXAMPLE_DEPLOYMENT_SVG_RESOURCE_ID = "aDeploymentSvgResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_SVG_RESOURCE_NAME = "a-svg-resource.svg";
+
+  public static final String EXAMPLE_DEPLOYMENT_PNG_RESOURCE_ID = "aDeploymentPngResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_PNG_RESOURCE_NAME = "an-image-resource.png";
+
+  public static final String EXAMPLE_DEPLOYMENT_JPG_RESOURCE_ID = "aDeploymentJpgResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_JPG_RESOURCE_NAME = "an-image-resource.jpg";
+
+  public static final String EXAMPLE_DEPLOYMENT_JPEG_RESOURCE_ID = "aDeploymentJpegResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_JPEG_RESOURCE_NAME = "an-image-resource.jpeg";
+
+  public static final String EXAMPLE_DEPLOYMENT_JPE_RESOURCE_ID = "aDeploymentJpeResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_JPE_RESOURCE_NAME = "an-image-resource.jpe";
+
+  public static final String EXAMPLE_DEPLOYMENT_GIF_RESOURCE_ID = "aDeploymentGifResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_GIF_RESOURCE_NAME = "an-image-resource.gif";
+
+  public static final String EXAMPLE_DEPLOYMENT_TIF_RESOURCE_ID = "aDeploymentTifResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_TIF_RESOURCE_NAME = "an-image-resource.tif";
+
+  public static final String EXAMPLE_DEPLOYMENT_TIFF_RESOURCE_ID = "aDeploymentTiffResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_TIFF_RESOURCE_NAME = "an-image-resource.tiff";
+
+  public static final String EXAMPLE_DEPLOYMENT_BPMN_RESOURCE_ID = "aDeploymentBpmnResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_BPMN_RESOURCE_NAME = "a-bpmn-resource.bpmn";
+
+  public static final String EXAMPLE_DEPLOYMENT_BPMN_XML_RESOURCE_ID = "aDeploymentBpmnXmlResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_BPMN_XML_RESOURCE_NAME = "a-bpmn-resource.bpmn20.xml";
+
+  public static final String EXAMPLE_DEPLOYMENT_CMMN_RESOURCE_ID = "aDeploymentCmmnResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_CMMN_RESOURCE_NAME = "a-cmmn-resource.cmmn";
+
+  public static final String EXAMPLE_DEPLOYMENT_CMMN_XML_RESOURCE_ID = "aDeploymentCmmnXmlResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_CMMN_XML_RESOURCE_NAME = "a-cmmn-resource.cmmn10.xml";
+
+  public static final String EXAMPLE_DEPLOYMENT_DMN_RESOURCE_ID = "aDeploymentDmnResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_DMN_RESOURCE_NAME = "a-dmn-resource.dmn";
+
+  public static final String EXAMPLE_DEPLOYMENT_DMN_XML_RESOURCE_ID = "aDeploymentDmnXmlResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_DMN_XML_RESOURCE_NAME = "a-dmn-resource.dmn11.xml";
+
+  public static final String EXAMPLE_DEPLOYMENT_XML_RESOURCE_ID = "aDeploymentXmlResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_XML_RESOURCE_NAME = "a-xml-resource.xml";
+
+  public static final String EXAMPLE_DEPLOYMENT_JSON_RESOURCE_ID = "aDeploymentJsonResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_JSON_RESOURCE_NAME = "a-json-resource.json";
+
+  public static final String EXAMPLE_DEPLOYMENT_GROOVY_RESOURCE_ID = "aDeploymentGroovyResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_GROOVY_RESOURCE_NAME = "a-groovy-resource.groovy";
+
+  public static final String EXAMPLE_DEPLOYMENT_JAVA_RESOURCE_ID = "aDeploymentGroovyResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_JAVA_RESOURCE_NAME = "a-java-resource.java";
+
+  public static final String EXAMPLE_DEPLOYMENT_JS_RESOURCE_ID = "aDeploymentJsResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_JS_RESOURCE_NAME = "a-js-resource.js";
+
+  public static final String EXAMPLE_DEPLOYMENT_PHP_RESOURCE_ID = "aDeploymentPhpResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_PHP_RESOURCE_NAME = "a-php-resource.php";
+
+  public static final String EXAMPLE_DEPLOYMENT_PYTHON_RESOURCE_ID = "aDeploymentPythonResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_PYTHON_RESOURCE_NAME = "a-python-resource.py";
+
+  public static final String EXAMPLE_DEPLOYMENT_RUBY_RESOURCE_ID = "aDeploymentRubyResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_RUBY_RESOURCE_NAME = "a-ruby-resource.rb";
+
+  public static final String EXAMPLE_DEPLOYMENT_HTML_RESOURCE_ID = "aDeploymentHtmlResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_HTML_RESOURCE_NAME = "a-html-resource.html";
+
+  public static final String EXAMPLE_DEPLOYMENT_TXT_RESOURCE_ID = "aDeploymentTxtResourceId";
+  public static final String EXAMPLE_DEPLOYMENT_TXT_RESOURCE_NAME = "a-txt-resource.txt";
+
+  public static final String EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_ID = "aDeploymentResourceFilenameId";
+  public static final String EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_PATH = "my/path/to/my/bpmn/";
+  public static final String EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_PATH_BACKSLASH = "my\\path\\to\\my\\bpmn\\";
+  public static final String EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_NAME = "process.bpmn";
 
   // statistics
   public static final int EXAMPLE_FAILED_JOBS = 42;
@@ -393,8 +476,6 @@ public abstract class MockProvider {
   public static final String EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_END_TIME = "2014-04-23T18:42:43";
   public static final long EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_DURATION = 2000l;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REQUIRED = true;
-  public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPEATABLE = true;
-  public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPETITION = true;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_AVAILABLE = true;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_ENABLED = true;
   public static final boolean EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_DISABLED = true;
@@ -546,8 +627,6 @@ public abstract class MockProvider {
   public static final String EXAMPLE_CASE_EXECUTION_ACTIVITY_TYPE = "anActivityType";
   public static final String EXAMPLE_CASE_EXECUTION_ACTIVITY_DESCRIPTION = "anActivityDescription";
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_REQUIRED = true;
-  public static final boolean EXAMPLE_CASE_EXECUTION_IS_REPEATABLE = true;
-  public static final boolean EXAMPLE_CASE_EXECUTION_IS_REPETITION = true;
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_ENABLED = true;
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_ACTIVE = true;
   public static final boolean EXAMPLE_CASE_EXECUTION_IS_DISABLED = true;
@@ -573,6 +652,9 @@ public abstract class MockProvider {
   public static final String EXAMPLE_DECISION_DEFINITION_NAME_LIKE = "aDecisionDefinitionNameLike";
   public static final String EXAMPLE_DECISION_DEFINITION_RESOURCE_NAME = "aDecisionDefinitionResourceName";
   public static final String EXAMPLE_DECISION_DEFINITION_DIAGRAM_RESOURCE_NAME = "aResourceName.png";
+
+  public static final String EXAMPLE_DECISION_OUTPUT_KEY = "aDecisionOutput";
+  public static final StringValue EXAMPLE_DECISION_OUTPUT_VALUE = Variables.stringValue("aDecisionOutputValue");
 
   // historic job log
 
@@ -625,6 +707,15 @@ public abstract class MockProvider {
   // metrics
   public static final String EXAMPLE_METRICS_START_DATE = "2015-01-01T00:00:00";
   public static final String EXAMPLE_METRICS_END_DATE = "2015-02-01T00:00:00";
+
+  // external task
+  public static final String EXTERNAL_TASK_ID = "anExternalTaskId";
+  public static final String EXTERNAL_TASK_ERROR_MESSAGE = "some error";
+  public static final String EXTERNAL_TASK_LOCK_EXPIRATION_TIME = "2015-10-05T13:25:00";
+  public static final Integer EXTERNAL_TASK_RETRIES = new Integer(5);
+  public static final boolean EXTERNAL_TASK_SUSPENDED = true;
+  public static final String EXTERNAL_TASK_TOPIC_NAME = "aTopic";
+  public static final String EXTERNAL_TASK_WORKER_ID = "aWorkerId";
 
   // tasks
   public static Task createMockTask() {
@@ -961,6 +1052,17 @@ public abstract class MockProvider {
     when(mockDeployment.getId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
     when(mockDeployment.getName()).thenReturn(EXAMPLE_DEPLOYMENT_NAME);
     when(mockDeployment.getDeploymentTime()).thenReturn(DateTimeUtil.parseDate(EXAMPLE_DEPLOYMENT_TIME));
+    when(mockDeployment.getSource()).thenReturn(EXAMPLE_DEPLOYMENT_SOURCE);
+
+    return mockDeployment;
+  }
+
+  public static Deployment createMockRedeployment() {
+    Deployment mockDeployment = mock(Deployment.class);
+    when(mockDeployment.getId()).thenReturn(EXAMPLE_RE_DEPLOYMENT_ID);
+    when(mockDeployment.getName()).thenReturn(EXAMPLE_DEPLOYMENT_NAME);
+    when(mockDeployment.getDeploymentTime()).thenReturn(DateTimeUtil.parseDate(EXAMPLE_DEPLOYMENT_TIME));
+    when(mockDeployment.getSource()).thenReturn(EXAMPLE_DEPLOYMENT_SOURCE);
 
     return mockDeployment;
   }
@@ -978,6 +1080,214 @@ public abstract class MockProvider {
     when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_RESOURCE_NAME);
     when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
 
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentSvgResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_SVG_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_SVG_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentPngResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_PNG_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_PNG_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentJpgResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_JPG_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_JPG_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentJpegResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_JPEG_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_JPEG_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentJpeResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_JPE_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_JPE_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentGifResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_GIF_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_GIF_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentTifResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_TIF_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_TIF_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentTiffResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_TIFF_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_TIFF_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentBpmnResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_BPMN_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_BPMN_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentBpmnXmlResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_BPMN_XML_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_BPMN_XML_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentCmmnResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_CMMN_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_CMMN_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentCmmnXmlResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_CMMN_XML_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_CMMN_XML_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentDmnResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_DMN_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_DMN_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentDmnXmlResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_DMN_XML_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_DMN_XML_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentXmlResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_XML_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_XML_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentJsonResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_JSON_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_JSON_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentGroovyResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_GROOVY_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_GROOVY_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentJavaResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_JAVA_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_JAVA_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentJsResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_JS_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_JS_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentPhpResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_PHP_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_PHP_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentPythonResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_PYTHON_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_PYTHON_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentRubyResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_RUBY_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_RUBY_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentHtmlResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_HTML_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_HTML_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentTxtResource() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_TXT_RESOURCE_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_TXT_RESOURCE_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentResourceFilename() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_PATH + EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
+    return mockResource;
+  }
+
+  public static Resource createMockDeploymentResourceFilenameBackslash() {
+    Resource mockResource = mock(ResourceEntity.class);
+    when(mockResource.getId()).thenReturn(EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_ID);
+    when(mockResource.getName()).thenReturn(EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_PATH_BACKSLASH + EXAMPLE_DEPLOYMENT_RESOURCE_FILENAME_NAME);
+    when(mockResource.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
     return mockResource;
   }
 
@@ -1231,8 +1541,6 @@ public abstract class MockProvider {
     when(mock.getEndTime()).thenReturn(DateTimeUtil.parseDate(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_END_TIME));
     when(mock.getDurationInMillis()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_DURATION);
     when(mock.isRequired()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REQUIRED);
-    when(mock.isRepeatable()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPEATABLE);
-    when(mock.isRepetition()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_REPETITION);
     when(mock.isAvailable()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_AVAILABLE);
     when(mock.isEnabled()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_ENABLED);
     when(mock.isDisabled()).thenReturn(EXAMPLE_HISTORIC_CASE_ACTIVITY_INSTANCE_IS_DISABLED);
@@ -1490,6 +1798,7 @@ public abstract class MockProvider {
   private static UserOperationLogEntry createUserOperationLogEntry() {
     UserOperationLogEntry entry = mock(UserOperationLogEntry.class);
     when(entry.getId()).thenReturn(EXAMPLE_USER_OPERATION_LOG_ID);
+    when(entry.getDeploymentId()).thenReturn(EXAMPLE_DEPLOYMENT_ID);
     when(entry.getProcessDefinitionId()).thenReturn(EXAMPLE_PROCESS_DEFINITION_ID);
     when(entry.getProcessDefinitionKey()).thenReturn(EXAMPLE_PROCESS_DEFINITION_KEY);
     when(entry.getProcessInstanceId()).thenReturn(EXAMPLE_PROCESS_INSTANCE_ID);
@@ -1753,8 +2062,6 @@ public abstract class MockProvider {
     when(mock.getActivityType()).thenReturn(EXAMPLE_CASE_EXECUTION_ACTIVITY_TYPE);
     when(mock.getActivityDescription()).thenReturn(EXAMPLE_CASE_EXECUTION_ACTIVITY_DESCRIPTION);
     when(mock.isRequired()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_REQUIRED);
-    when(mock.isRepeatable()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_REPEATABLE);
-    when(mock.isRepetition()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_REPETITION);
     when(mock.isActive()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_ACTIVE);
     when(mock.isEnabled()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_ENABLED);
     when(mock.isDisabled()).thenReturn(EXAMPLE_CASE_EXECUTION_IS_DISABLED);
@@ -1943,6 +2250,9 @@ public abstract class MockProvider {
     when(mock.getProcessDefinitionId()).thenReturn(EXAMPLE_PROCESS_DEFINITION_ID);
     when(mock.getProcessDefinitionKey()).thenReturn(EXAMPLE_PROCESS_DEFINITION_KEY);
     when(mock.getProcessInstanceId()).thenReturn(EXAMPLE_PROCESS_INSTANCE_ID);
+    when(mock.getCaseDefinitionId()).thenReturn(EXAMPLE_CASE_DEFINITION_ID);
+    when(mock.getCaseDefinitionKey()).thenReturn(EXAMPLE_CASE_DEFINITION_KEY);
+    when(mock.getCaseInstanceId()).thenReturn(EXAMPLE_CASE_INSTANCE_ID);
     when(mock.getActivityId()).thenReturn(EXAMPLE_HISTORIC_DECISION_INSTANCE_ACTIVITY_ID);
     when(mock.getActivityInstanceId()).thenReturn(EXAMPLE_HISTORIC_DECISION_INSTANCE_ACTIVITY_INSTANCE_ID);
     when(mock.getEvaluationTime()).thenReturn(DateTimeUtil.parseDate(EXAMPLE_HISTORIC_DECISION_INSTANCE_EVALUATION_TIME));
@@ -2025,6 +2335,52 @@ public abstract class MockProvider {
     when(output.getTypedValue()).thenReturn(typedValue);
     when(output.getErrorMessage()).thenReturn(null);
     return output;
+  }
+
+  // external task
+
+  public static MockExternalTaskBuilder mockExternalTask() {
+    return new MockExternalTaskBuilder()
+      .id(EXTERNAL_TASK_ID)
+      .activityId(EXAMPLE_ACTIVITY_ID)
+      .activityInstanceId(EXAMPLE_ACTIVITY_INSTANCE_ID)
+      .errorMessage(EXTERNAL_TASK_ERROR_MESSAGE)
+      .executionId(EXAMPLE_EXECUTION_ID)
+      .lockExpirationTime(DateTimeUtil.parseDate(EXTERNAL_TASK_LOCK_EXPIRATION_TIME))
+      .processDefinitionId(EXAMPLE_PROCESS_DEFINITION_ID)
+      .processDefinitionKey(EXAMPLE_PROCESS_DEFINITION_KEY)
+      .processInstanceId(EXAMPLE_PROCESS_INSTANCE_ID)
+      .retries(EXTERNAL_TASK_RETRIES)
+      .suspended(EXTERNAL_TASK_SUSPENDED)
+      .topicName(EXTERNAL_TASK_TOPIC_NAME)
+      .workerId(EXTERNAL_TASK_WORKER_ID);
+  }
+
+  public static ExternalTask createMockExternalTask() {
+    return mockExternalTask().buildExternalTask();
+  }
+
+  public static LockedExternalTask createMockLockedExternalTask() {
+    return mockExternalTask()
+      .variable(EXAMPLE_VARIABLE_INSTANCE_NAME, EXAMPLE_PRIMITIVE_VARIABLE_VALUE)
+      .buildLockedExternalTask();
+  }
+
+  public static List<ExternalTask> createMockExternalTasks() {
+    List<ExternalTask> mocks = new ArrayList<ExternalTask>();
+    mocks.add(createMockExternalTask());
+    return mocks;
+  }
+
+  public static MockDecisionTableResultBuilder mockDecisionResult() {
+    return new MockDecisionTableResultBuilder()
+        .ruleResult()
+          .entry(EXAMPLE_DECISION_OUTPUT_KEY, EXAMPLE_DECISION_OUTPUT_VALUE)
+          .endRuleResult();
+  }
+
+  public static DmnDecisionTableResult createMockDecisionResult() {
+    return mockDecisionResult().build();
   }
 
 }

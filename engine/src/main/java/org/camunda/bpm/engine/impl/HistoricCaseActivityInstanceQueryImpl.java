@@ -31,6 +31,7 @@ import org.camunda.bpm.engine.history.HistoricCaseActivityInstance;
 import org.camunda.bpm.engine.history.HistoricCaseActivityInstanceQuery;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.interceptor.CommandExecutor;
+import org.camunda.bpm.engine.impl.util.CompareUtil;
 
 /**
  * @author Sebastian Menski
@@ -53,8 +54,6 @@ public class HistoricCaseActivityInstanceQueryImpl extends AbstractQuery<Histori
   protected Boolean ended;
   protected Integer caseActivityInstanceState;
   protected Boolean required;
-  protected Boolean repeatable;
-  protected Boolean repetition;
 
   public HistoricCaseActivityInstanceQueryImpl() {
   }
@@ -148,16 +147,6 @@ public class HistoricCaseActivityInstanceQueryImpl extends AbstractQuery<Histori
     return this;
   }
 
-  public HistoricCaseActivityInstanceQuery repeatable() {
-    this.repeatable = true;
-    return this;
-  }
-
-  public HistoricCaseActivityInstanceQuery repetition() {
-    this.repetition = true;
-    return this;
-  }
-
   public HistoricCaseActivityInstanceQuery ended() {
     this.ended = true;
     return this;
@@ -208,6 +197,13 @@ public class HistoricCaseActivityInstanceQueryImpl extends AbstractQuery<Histori
     ensureNull(NotValidException.class, "Already querying for case activity instance state '" + caseActivityInstanceState + "'", "caseActivityState", caseActivityInstanceState);
     this.caseActivityInstanceState = TERMINATED.getStateCode();
     return this;
+  }
+
+  @Override
+  protected boolean hasExcludingConditions() {
+    return super.hasExcludingConditions()
+      || CompareUtil.areNotInAscendingOrder(createdAfter, createdBefore)
+      || CompareUtil.areNotInAscendingOrder(endedAfter, endedBefore);
   }
 
   // ordering
@@ -314,14 +310,6 @@ public class HistoricCaseActivityInstanceQueryImpl extends AbstractQuery<Histori
 
   public Boolean isRequired() {
     return required;
-  }
-
-  public Boolean isRepeatable() {
-    return repeatable;
-  }
-
-  public Boolean isRepetition() {
-    return repetition;
   }
 
 }

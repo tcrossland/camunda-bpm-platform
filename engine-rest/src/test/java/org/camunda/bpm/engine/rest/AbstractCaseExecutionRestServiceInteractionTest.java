@@ -13,7 +13,6 @@
 package org.camunda.bpm.engine.rest;
 
 import static com.jayway.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.containsString;
@@ -40,13 +39,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response.Status;
-
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.exception.NotValidException;
-import org.camunda.bpm.engine.impl.core.variable.type.ObjectTypeImpl;
 import org.camunda.bpm.engine.impl.util.IoUtil;
 import org.camunda.bpm.engine.rest.dto.runtime.VariableNameDto;
 import org.camunda.bpm.engine.rest.exception.InvalidRequestException;
@@ -63,15 +58,18 @@ import org.camunda.bpm.engine.runtime.CaseExecution;
 import org.camunda.bpm.engine.runtime.CaseExecutionCommandBuilder;
 import org.camunda.bpm.engine.runtime.CaseExecutionQuery;
 import org.camunda.bpm.engine.variable.Variables;
+import org.camunda.bpm.engine.variable.type.SerializableValueType;
 import org.camunda.bpm.engine.variable.value.BooleanValue;
 import org.camunda.bpm.engine.variable.value.FileValue;
 import org.camunda.bpm.engine.variable.value.ObjectValue;
-import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Matchers;
+
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response.Status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -162,8 +160,6 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
         .body("activityType", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_ACTIVITY_TYPE))
         .body("activityDescription", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_ACTIVITY_DESCRIPTION))
         .body("required", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_IS_REQUIRED))
-        .body("repeatable", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_IS_REPEATABLE))
-        .body("repetition", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_IS_REPETITION))
         .body("active", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_IS_ACTIVE))
         .body("enabled", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_IS_ENABLED))
         .body("disabled", equalTo(MockProvider.EXAMPLE_CASE_EXECUTION_IS_DISABLED))
@@ -1411,8 +1407,8 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
       .then().expect().statusCode(Status.OK.getStatusCode())
       .body(variableKey + ".value", equalTo(payload))
       .body(variableKey + ".type", equalTo("Object"))
-      .body(variableKey + ".valueInfo." + ObjectTypeImpl.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
-      .body(variableKey + ".valueInfo." + ObjectTypeImpl.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
+      .body(variableKey + ".valueInfo." + SerializableValueType.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
+      .body(variableKey + ".valueInfo." + SerializableValueType.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
       .when().get(CASE_EXECUTION_LOCAL_VARIABLES_URL);
 
     // then
@@ -1441,8 +1437,8 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
     .then().expect().statusCode(Status.OK.getStatusCode())
       .body(variableKey + ".value", equalTo("a serialized value"))
       .body(variableKey + ".type", equalTo("Object"))
-      .body(variableKey + ".valueInfo." + ObjectTypeImpl.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
-      .body(variableKey + ".valueInfo." + ObjectTypeImpl.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
+      .body(variableKey + ".valueInfo." + SerializableValueType.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
+      .body(variableKey + ".valueInfo." + SerializableValueType.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
       .when().get(CASE_EXECUTION_LOCAL_VARIABLES_URL);
 
     // then
@@ -1562,15 +1558,16 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
     when(caseServiceMock.getVariableTyped(eq(MockProvider.EXAMPLE_CASE_INSTANCE_ID), eq(variableKey), anyBoolean()))
     .thenReturn(variableValue);
 
-    given()
+    Response response = given()
       .pathParam("id", MockProvider.EXAMPLE_CASE_INSTANCE_ID)
       .pathParam("varId", variableKey)
     .then().expect()
       .statusCode(Status.OK.getStatusCode())
-      .contentType(either(CoreMatchers.<Object>equalTo(ContentType.TEXT.toString() + "; charset=UTF-8")).or(CoreMatchers.<Object>equalTo(ContentType.TEXT.toString() + ";charset=UTF-8")))
-    .and()
       .body(is(equalTo(new String(byteContent))))
     .when().get(SINGLE_CASE_EXECUTION_BINARY_VARIABLE_URL);
+
+    String contentType = response.contentType().replaceAll(" ", "");
+    assertThat(contentType, is(ContentType.TEXT + ";charset=" + encoding));
   }
 
   @Test
@@ -1893,8 +1890,8 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
       .then().expect().statusCode(Status.OK.getStatusCode())
       .body("value", equalTo(payload))
       .body("type", equalTo("Object"))
-      .body("valueInfo." + ObjectTypeImpl.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
-      .body("valueInfo." + ObjectTypeImpl.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
+      .body("valueInfo." + SerializableValueType.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
+      .body("valueInfo." + SerializableValueType.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
       .when().get(SINGLE_CASE_EXECUTION_LOCAL_VARIABLE_URL);
 
     // then
@@ -1923,8 +1920,8 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
     .then().expect().statusCode(Status.OK.getStatusCode())
       .body("value", equalTo("a serialized value"))
       .body("type", equalTo("Object"))
-      .body("valueInfo." + ObjectTypeImpl.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
-      .body("valueInfo." + ObjectTypeImpl.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
+      .body("valueInfo." + SerializableValueType.VALUE_INFO_SERIALIZATION_DATA_FORMAT, equalTo("application/json"))
+      .body("valueInfo." + SerializableValueType.VALUE_INFO_OBJECT_TYPE_NAME, equalTo(ArrayList.class.getName()))
       .when().get(SINGLE_CASE_EXECUTION_LOCAL_VARIABLE_URL);
 
     // then
@@ -2667,6 +2664,48 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
   }
 
   @Test
+  public void testPutSingleLocalBinaryVariableWithValueType() throws Exception {
+    byte[] bytes = "someContent".getBytes();
+
+    String variableKey = "aVariableKey";
+
+    given()
+      .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID).pathParam("varId", variableKey)
+      .multiPart("data", null, bytes)
+      .multiPart("valueType", "Bytes", "text/plain")
+    .expect()
+      .statusCode(Status.NO_CONTENT.getStatusCode())
+    .when()
+      .post(SINGLE_CASE_EXECUTION_LOCAL_BINARY_VARIABLE_URL);
+
+    verify(caseServiceMock).withCaseExecution(MockProvider.EXAMPLE_CASE_EXECUTION_ID);
+    verify(caseExecutionCommandBuilderMock).setVariableLocal(eq(variableKey),
+        argThat(EqualsPrimitiveValue.bytesValue(bytes)));
+    verify(caseExecutionCommandBuilderMock).execute();
+  }
+
+  @Test
+  public void testPutSingleBinaryVariableWithValueType() {
+    byte[] bytes = "someContent".getBytes();
+
+    String variableKey = "aVariableKey";
+
+    given()
+      .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID).pathParam("varId", variableKey)
+      .multiPart("data", null, bytes)
+      .multiPart("valueType", "Bytes", "text/plain")
+    .expect()
+      .statusCode(Status.NO_CONTENT.getStatusCode())
+    .when()
+      .post(SINGLE_CASE_EXECUTION_LOCAL_BINARY_VARIABLE_URL);
+
+    verify(caseServiceMock).withCaseExecution(MockProvider.EXAMPLE_CASE_EXECUTION_ID);
+    verify(caseExecutionCommandBuilderMock).setVariableLocal(eq(variableKey),
+        argThat(EqualsPrimitiveValue.bytesValue(bytes)));
+    verify(caseExecutionCommandBuilderMock).execute();
+  }
+
+  @Test
   public void testPutSingleLocalBinaryVariableWithNoValue() throws Exception {
     byte[] bytes = new byte[0];
 
@@ -2894,6 +2933,7 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
       .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID)
       .pathParam("varId", variableKey)
       .multiPart("data", filename, value, mimetype + "; encoding="+encoding)
+      .multiPart("valueType", "File", "text/plain")
     .expect()
       .statusCode(Status.NO_CONTENT.getStatusCode())
     .when()
@@ -2921,6 +2961,7 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
     given()
       .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID).pathParam("varId", variableKey)
       .multiPart("data", filename, value, mimetype)
+      .multiPart("valueType", "File", "text/plain")
       .header("accept", MediaType.APPLICATION_JSON)
     .expect()
       .statusCode(Status.NO_CONTENT.getStatusCode())
@@ -2949,6 +2990,7 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
     given()
       .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID).pathParam("varId", variableKey)
       .multiPart("data", filename, value, "encoding="+encoding)
+      .multiPart("valueType", "File", "text/plain")
       .header("accept", MediaType.APPLICATION_JSON)
     .expect()
     //when the user passes an encoding, he has to provide the type, too
@@ -2966,6 +3008,7 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
     given()
       .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID).pathParam("varId", variableKey)
       .multiPart("data", filename, new byte[0])
+      .multiPart("valueType", "File", "text/plain")
       .header("accept", MediaType.APPLICATION_JSON)
     .expect()
       .statusCode(Status.NO_CONTENT.getStatusCode())
@@ -2996,6 +3039,7 @@ public abstract class AbstractCaseExecutionRestServiceInteractionTest extends Ab
       .pathParam("id", MockProvider.EXAMPLE_CASE_EXECUTION_ID).pathParam("varId", variableKey)
       .multiPart("data", filename, value, mimetype + "; encoding="+encoding)
       .header("accept", MediaType.APPLICATION_JSON)
+      .multiPart("valueType", "File", "text/plain")
     .expect()
       .statusCode(Status.NO_CONTENT.getStatusCode())
     .when()
