@@ -13,6 +13,10 @@
 package org.camunda.bpm.engine.rest.security.auth.impl;
 
 import org.camunda.bpm.engine.ProcessEngine;
+import org.camunda.bpm.engine.identity.Group;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * <p>
@@ -25,7 +29,9 @@ public class HttpBasicUsernameAuthenticationProvider extends HttpBasicAuthentica
 
     @Override
     protected boolean isAuthenticated(ProcessEngine engine, String userName, String password) {
-        engine.getIdentityService().setAuthenticatedUserId(userName);
+        List<Group> groups = engine.getIdentityService().createGroupQuery().groupMember(userName).list();
+        List<String> groupNames = groups.stream().map(Group::getName).collect(Collectors.toList());
+        engine.getIdentityService().setAuthentication(userName, groupNames);
         return true;
     }
 }
