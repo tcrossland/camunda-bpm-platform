@@ -31,6 +31,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+
 import javax.naming.InitialContext;
 import javax.sql.DataSource;
 
@@ -45,6 +46,7 @@ import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.apache.ibatis.transaction.managed.ManagedTransactionFactory;
 import org.camunda.bpm.dmn.engine.DmnEngine;
 import org.camunda.bpm.dmn.engine.DmnEngineConfiguration;
+import org.camunda.bpm.dmn.engine.impl.DefaultDmnEngineConfiguration;
 import org.camunda.bpm.engine.ArtifactFactory;
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
@@ -105,7 +107,7 @@ import org.camunda.bpm.engine.impl.db.sql.DbSqlSessionFactory;
 import org.camunda.bpm.engine.impl.delegate.DefaultDelegateInterceptor;
 import org.camunda.bpm.engine.impl.digest.PasswordEncryptor;
 import org.camunda.bpm.engine.impl.digest.ShaHashDigest;
-import org.camunda.bpm.engine.impl.dmn.configuration.ProcessEngineDmnEngineConfiguration;
+import org.camunda.bpm.engine.impl.dmn.configuration.DmnEngineConfigurationBuilder;
 import org.camunda.bpm.engine.impl.dmn.deployer.DmnDeployer;
 import org.camunda.bpm.engine.impl.dmn.entity.repository.DecisionDefinitionManager;
 import org.camunda.bpm.engine.impl.el.CommandContextFunctionMapper;
@@ -136,7 +138,6 @@ import org.camunda.bpm.engine.impl.history.HistoryLevel;
 import org.camunda.bpm.engine.impl.history.event.HistoricDecisionInstanceManager;
 import org.camunda.bpm.engine.impl.history.handler.DbHistoryEventHandler;
 import org.camunda.bpm.engine.impl.history.handler.HistoryEventHandler;
-import org.camunda.bpm.engine.impl.history.parser.HistoryDecisionTableListener;
 import org.camunda.bpm.engine.impl.history.parser.HistoryParseListener;
 import org.camunda.bpm.engine.impl.history.producer.CacheAwareCmmnHistoryEventProducer;
 import org.camunda.bpm.engine.impl.history.producer.CacheAwareHistoryEventProducer;
@@ -243,6 +244,7 @@ import org.camunda.bpm.engine.impl.variable.serializer.NullValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.ShortValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.StringValueSerializer;
 import org.camunda.bpm.engine.impl.variable.serializer.TypedValueSerializer;
+import org.camunda.bpm.engine.impl.variable.serializer.VariableSerializerFactory;
 import org.camunda.bpm.engine.impl.variable.serializer.VariableSerializers;
 import org.camunda.bpm.engine.impl.variable.serializer.jpa.EntityManagerSession;
 import org.camunda.bpm.engine.impl.variable.serializer.jpa.EntityManagerSessionFactory;
@@ -362,6 +364,8 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected List<TypedValueSerializer> customPreVariableSerializers;
   protected List<TypedValueSerializer> customPostVariableSerializers;
   protected VariableSerializers variableSerializers;
+  protected VariableSerializerFactory fallbackSerializerFactory;
+
   protected String defaultSerializationFormat = Variables.SerializationDataFormats.JAVA.getName();
   protected String defaultCharsetName = null;
   protected Charset defaultCharset = null;
@@ -395,7 +399,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected DefaultCmmnElementHandlerRegistry cmmnElementHandlerRegistry;
 
   // dmn
-  protected DmnEngineConfiguration dmnEngineConfiguration;
+  protected DefaultDmnEngineConfiguration dmnEngineConfiguration;
   protected DmnEngine dmnEngine;
 
   protected HistoryLevel historyLevel;
@@ -977,6 +981,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     dbSqlSessionFactory.setDbIdentityUsed(isDbIdentityUsed);
     dbSqlSessionFactory.setDbHistoryUsed(isDbHistoryUsed);
     dbSqlSessionFactory.setCmmnEnabled(cmmnEnabled);
+    dbSqlSessionFactory.setDmnEnabled(dmnEnabled);
     dbSqlSessionFactory.setDatabaseTablePrefix(databaseTablePrefix);
     dbSqlSessionFactory.setDatabaseSchema(databaseSchema);
     addSessionFactory(dbSqlSessionFactory);
@@ -1122,7 +1127,7 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   protected DmnDeployer getDmnDeployer() {
     DmnDeployer dmnDeployer = new DmnDeployer();
     dmnDeployer.setIdGenerator(idGenerator);
-    dmnDeployer.setTransformer(((ProcessEngineDmnEngineConfiguration) dmnEngineConfiguration).getTransformer());
+    dmnDeployer.setTransformer(dmnEngineConfiguration.getTransformer());
     return dmnDeployer;
   }
 
@@ -1134,12 +1139,12 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
     this.dmnEngine = dmnEngine;
   }
 
-  public DmnEngineConfiguration getDmnEngineConfiguration() {
+  public DefaultDmnEngineConfiguration getDmnEngineConfiguration() {
     return dmnEngineConfiguration;
   }
 
-  public void setDmnEngineConfiguration(DmnEngineConfiguration dmnEngineConfiguration) {
-    dmnEngineConfiguration = dmnEngineConfiguration;
+  public void setDmnEngineConfiguration(DefaultDmnEngineConfiguration dmnEngineConfiguration) {
+    this.dmnEngineConfiguration = dmnEngineConfiguration;
   }
 
   // job executor /////////////////////////////////////////////////////////////
@@ -1437,19 +1442,24 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
   }
 
   protected void initDmnEngine() {
-    if (dmnEngine == null) {
-      if (dmnEngineConfiguration == null) {
-        dmnEngineConfiguration = new ProcessEngineDmnEngineConfiguration(
-            scriptingEngines,
-            new HistoryDecisionTableListener(dmnHistoryEventProducer, historyLevel),
-            expressionManager);
-      }
-      dmnEngine = dmnEngineConfiguration.buildEngine();
-    }
-    else if (dmnEngineConfiguration == null) {
-      dmnEngineConfiguration = dmnEngine.getConfiguration();
-    }
+    if(dmnEngine == null) {
 
+      if(dmnEngineConfiguration == null) {
+        dmnEngineConfiguration = (DefaultDmnEngineConfiguration) DmnEngineConfiguration.createDefaultDmnEngineConfiguration();
+      }
+
+      dmnEngineConfiguration = new DmnEngineConfigurationBuilder(dmnEngineConfiguration)
+        .historyLevel(historyLevel)
+        .dmnHistoryEventProducer(dmnHistoryEventProducer)
+        .scriptEngineResolver(scriptingEngines)
+        .expressionManager(expressionManager)
+        .build();
+
+      dmnEngine = dmnEngineConfiguration.buildEngine();
+
+    } else if (dmnEngineConfiguration == null) {
+      dmnEngineConfiguration = (DefaultDmnEngineConfiguration) dmnEngine.getConfiguration();
+    }
   }
 
   protected void initExpressionManager() {
@@ -1884,6 +1894,14 @@ public abstract class ProcessEngineConfigurationImpl extends ProcessEngineConfig
 
   public VariableSerializers getVariableSerializers() {
     return variableSerializers;
+  }
+
+  public VariableSerializerFactory getFallbackSerializerFactory() {
+    return fallbackSerializerFactory;
+  }
+
+  public void setFallbackSerializerFactory(VariableSerializerFactory fallbackSerializerFactory) {
+    this.fallbackSerializerFactory = fallbackSerializerFactory;
   }
 
   public ProcessEngineConfigurationImpl setVariableTypes(VariableSerializers variableSerializers) {
